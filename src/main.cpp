@@ -52,23 +52,41 @@ enum OPCODE {
     MOV_CL,                             // 0xB1+operator
 };
 
+
 extern "C" ExecutionState decode_and_execute() {
     OPCODE Opcode;
     /*
         * We will try to detect the operational code of the actual instruction 
     */
-    switch( (regs.pc) >> 8 ) {
-        // mov "al" or mov "ax"
-        case 0x88: {
-            if(((regs.pc)<<8) == 0xD8) { // MOV AL, BL
-                regs.al = regs.bl;
-                pc+=2;
-                break;
-            } else { // MOV AX, BX
-                regs.ax = regs.bx; // TODO bx e ax são partes baixas do AL e BL
-                pc+=2;
-                break;
-            }
+    
+    // 2-byte opcodes test
+    switch( (regs.pc) ) {
+        case MOV_AL_BL: {
+            regs.al = regs.bl; // TODO al e bl são apenas partes inferiores do BX e AX
+            pc+=2;
+            break;
+        };
+        
+        case MOV_AX_BX: {
+            regs.ax = regs.bx;
+            pc+=2;
+            break;
+        };
+        default: {
+            cout << "Nenhum OPCODE de 2 bytes válido encontrado, tentando apenas de 1 byte...\n";
+            break;
+        };
+    }
+    
+    switch( (regs.pc)>>8 ) {
+        case NOP: {
+            pc+=1;
+            brak;
+        };
+        
+        default: {
+            cout << "OPCODE inválido detectado!";
+            while(true);
         }
     }
 
