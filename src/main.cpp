@@ -40,6 +40,40 @@ struct Registers {
     word cs;                            // Code segment (start address)
 } regs;
 
+enum ExecutionState {
+    SUCCESS,
+    ERROR,
+};
+
+enum OPCODE {
+    NOP,
+    MOV_AL_BL,                          // 0x88D8
+    MOV_AX_BX,                          // 0x89D8
+    MOV_CL,                             // 0xB1+operator
+};
+
+extern "C" ExecutionState decode_and_execute() {
+    OPCODE Opcode;
+    /*
+        * We will try to detect the operational code of the actual instruction 
+    */
+    switch( (regs.pc) >> 8 ) {
+        // mov "al" or mov "ax"
+        case 0x88: {
+            if(((regs.pc)<<8) == 0xD8) { // MOV AL, BL
+                regs.al = regs.bl;
+                pc+=2;
+                break;
+            } else { // MOV AX, BX
+                regs.ax = regs.bx; // TODO bx e ax são partes baixas do AL e BL
+                pc+=2;
+                break;
+            }
+        }
+    }
+
+}
+
 extern "C" void start_execution_by_clock() {
     while(true) {
         cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
@@ -48,7 +82,6 @@ extern "C" void start_execution_by_clock() {
         regs.ir = *(virtual_memory_base_address+regs.cs+regs.pc);
         cout << "Opcode: " << itoh(regs.ir) << "\n";
         
-        regs.pc+=(word)2;
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
 }
