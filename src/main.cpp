@@ -17,6 +17,8 @@
 #include <netinet/in.h>
 #include <string.h>
 
+#define CONNECT_BY_GDB
+
 /* GDB protocol configuration */
 
 #define PORT 1234
@@ -195,59 +197,76 @@ extern "C" ExecutionState decode_and_execute() {
     imm_value = (short) htons(*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
     switch( (regs.ir)>>8 ) {
         
-        case 0xB8: { // mov ax, imm16 
-          regs.ax = imm_value;
-          regs.pc += 3;
-          return {};
-        };
+      case 0xB8: { // mov ax, imm16 
+        regs.ax = imm_value;
+        regs.pc += 3;
+        return {};
+      };
 
-        case 0xB9: { // mov cx, imm16
-          regs.cx = imm_value;
-          regs.pc += 3;
-          return {};
-        };
+      case 0xB9: { // mov cx, imm16
+        regs.cx = imm_value;
+        regs.pc += 3;
+        return {};
+      };
 
-        case 0xBA: { // mov dx, imm16
-          regs.dx = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBA: { // mov dx, imm16
+        regs.dx = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        case 0xBB: { // mov bx, imm16
-          regs.bx = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBB: { // mov bx, imm16
+        regs.bx = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        case 0xBC: { // mov sp, imm16
-          regs.sp = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBC: { // mov sp, imm16
+        regs.sp = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        case 0xBD: { // mov bp, imm16
-          regs.bp = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBD: { // mov bp, imm16
+        regs.bp = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        case 0xBE: { // mov si, imm16
-          regs.si = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBE: { // mov si, imm16
+        regs.si = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        case 0xBF: { // mov di, imm16
-          regs.di = imm_value;
-          regs.pc += 3;
-          return {};
-        }
+      case 0xBF: { // mov di, imm16
+        regs.di = imm_value;
+        regs.pc += 3;
+        return {};
+      }
 
-        default: {
-            cout << "CPU Fault";
-            while(true);
-            return {};
-        };
+        /* Stack-related */
+
+      case 0xE8: { // call in same-segment (code-segment)
+        imm_value = (signed short) imm_value;
+        regs.sp -= 2;
+        unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
+        *sp_ptr = regs.pc+3;
+        regs.pc += imm_value;
+        return {};
+      }
+
+      case 0xEB: { // jmp short in same-segment
+        imm_value = (signed char) (imm_value>>8);
+        regs.pc+=imm_value;
+        return {};
+      }
+
+      default: {
+        cout << "CPU Fault";
+        while(true);
+        return {};
+      };
     }
 
     return {};
@@ -263,6 +282,7 @@ extern "C" void start_execution_by_clock() {
           while(true) {
             memset(data_buffer, 0, sizeof(data_buffer));
             ssize_t numBytesRcvd = recv(newSocket, data_buffer, sizeof(data_buffer), 0);
+            cout << "[GDB]\n" << data_buffer << "\n";
             if(numBytesRcvd == 0) {
               cout << "Connection closed by the client\n";
               return;
@@ -293,10 +313,9 @@ extern "C" int main(int argc, char *argv[]) {
         return -1;
     } else {
       serverSocket = 0;
-#define CONNECT_BY_GDB
       #ifdef CONNECT_BY_GDB
-        //if(!StartGDBCommunication())
-          //return -1;
+        if(!StartGDBCommunication())
+          return -1;
       #endif
       virtual_memory_base_address = (byte*) mmap(NULL, 512*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       cout << "Endereço base da memória virtual alocada (512MB): 0x" \
@@ -321,7 +340,8 @@ extern "C" int main(int argc, char *argv[]) {
         
         regs.pc = 0x7c00;
         regs.cs = 0;
-        regs.ax = 0x0e0e;
+        regs.ss = 0;
+        regs.ds = 0;
         
         start_execution_by_clock();
         
