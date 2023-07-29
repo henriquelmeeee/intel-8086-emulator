@@ -16,4 +16,8 @@ enum ExecutionState {
     ERROR,
 };
 
+    
+#define AH 0x00FF
+#define AL 0xFF00
+
 #endif
