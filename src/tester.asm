@@ -4,12 +4,8 @@
 main:
   ;mov ah, 0x0e
   ;mov al, 'O'
-  int 0x10
-  int 0x10
-  int 0x10
-  int 0x10
-  int 0x10
-  int 0x10
+  mov ah, 0x0e
+  mov al, 'e'
   int 0x10
   int 3
 

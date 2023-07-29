@@ -52,41 +52,93 @@ extern "C" ExecutionState decode_and_execute() {
     */
     
     regs.ir = htons(regs.ir);
-    
     // 1-byte opcodes
-    cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
+    //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch ((regs.ir) >> 8) {
         case NOP: {
-            cout << "[DBG] NOP found\n";
+            //cout << "[DBG] NOP found\n";
             ++regs.pc;
-            break;
+            return {};
         };
         default: {
-            cout << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
+            //cout << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
             break;
         };
     }
-    
+
     // 2-byte opcodes test
-    cout << "[DBG] testing 2-byte opcodes";
+    byte imm_value = *(virtual_memory_base_address+(regs.cs*16)+regs.pc+1);
     switch( (regs.ir) >> 8 ) {
+
+        case 0xB0: { // mov al, imm8
+          regs.ax = (regs.ax&AH) | imm_value;
+          regs.pc += 2;
+          return {};
+        }
+
+        case 0xB1: { // mov cl, imm8
+          regs.cx = (regs.cx&AH) | imm_value;
+          regs.pc += 2;
+          return {};
+        }
+
+        case 0xB2: { // mov dl, imm8
+          regs.dx = (regs.dx&AH) | imm_value;
+          regs.pc += 2;
+          return {};
+        }
+
+        case 0xB3: { // mov bl, imm8
+          regs.bx = (regs.bx&AH) | imm_value;
+          regs.pc += 2;
+          return {};
+        }
+
+        /* AH (high) movs */
+
+        case 0xB4: { //mov ah, imm 8
+          regs.ax = (regs.ax&AL) | (imm_value<<8);
+          regs.pc += 2;
+          return {};
+        }
+
+        case 0xB5: { // mov ch, imm8
+          regs.cx = (regs.cx&AL) | (imm_value<<8);
+          regs.pc += 2;
+          return {}; 
+        }
+
+        case 0xB6: { //mov dh, imm8
+          regs.dx = (regs.dx&AL) | (imm_value<<8);
+          regs.pc += 2;
+          return {};
+        }
+
+        case 0xB7: { // mov bh, imm8
+          regs.bx = (regs.bx&AL) | (imm_value<<8);
+          regs.pc += 2;
+          return {};
+        }
+
         case INT: {
 
             // Interruptions
             
-            cout << "regs.ir: " << itoh(regs.ir) << "\n";
+            //cout << "regs.ir: " << itoh(regs.ir) << "\n";
             switch( (regs.ir)&AL ) {
               case 0x10: { // BIOS VIDEO SERVICE
-                cout << "[DBG] BIOS VIDEO SERVICE\n";
-                cout << "regs.ax&AH: " << itoh((regs.ax)&AH) << "\n";
+                //cout << "[DBG] BIOS VIDEO SERVICE\n";
                 switch( ((regs.ax)&AH)>>8 ) { // AH
                     case 0x0e: { // DISPLAY CARACTER
                         cout << (char)((regs.ax)&AL);
-                        break;
-                    };
+                        cout << "sexo";
+                        regs.pc+= 2;
+                        return {};
+                    }
                     default: {
                         cout << "?";
-                        break;
+                        regs.pc += 2;
+                        return {};
                     };
                 };
                 break;
@@ -97,21 +149,70 @@ extern "C" ExecutionState decode_and_execute() {
               };
                 
             }
-            
-            regs.pc+=2;
             break;
         };
         default: {
             break;
         };
-    }
+    };
     
+    /* 3-byte opcode tests */
+
+    imm_value = (short) htons(*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
     switch( (regs.ir)>>8 ) {
         
+        case 0xB8: { // mov ax, imm16 
+          regs.ax = imm_value;
+          regs.pc += 3;
+          return {};
+        };
+
+        case 0xB9: { // mov cx, imm16
+          regs.cx = imm_value;
+          regs.pc += 3;
+          return {};
+        };
+
+        case 0xBA: { // mov dx, imm16
+          regs.dx = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
+        case 0xBB: { // mov bx, imm16
+          regs.bx = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
+        case 0xBC: { // mov sp, imm16
+          regs.sp = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
+        case 0xBD: { // mov bp, imm16
+          regs.bp = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
+        case 0xBE: { // mov si, imm16
+          regs.si = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
+        case 0xBF: { // mov di, imm16
+          regs.di = imm_value;
+          regs.pc += 3;
+          return {};
+        }
+
         default: {
-            //cout << "CPU Fault";
-            //while(true);
-            regs.pc+=2;
+            cout << "CPU Fault";
+            while(true);
+            return {};
         };
     }
 
@@ -153,8 +254,11 @@ extern "C" int main(int argc, char *argv[]) {
         std::fread(buffer, sizeof(byte), 512, disk);
         std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
         for(int byte_ = 0; byte_ < 512; byte_++) {
+          if(buffer[byte_] == 0)
             cout << ".";
-            *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
+          else
+            cout << "!";
+          *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
         }
         cout << "\n";
         
