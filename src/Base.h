@@ -6,18 +6,20 @@ typedef unsigned short word;
 struct Registers {
     /* General-Purposes registers */
     word ax;
-    word si;
-    word bx;
-    word di;
-    word dx;
     word cx;
-    /* Code-related registers */
-    word ir;                            // Instruction Register
-    word pc;                            // Program Counter 
-    /* Segmentation-related registers */
-    word cs;                            // Code segment (start address)
-    word sp;                            // Stack pointer
-    word bp;                            // Base pointer (base of stack)
+    word dx;
+    word bx;
+    word sp;
+    word bp;
+    word si;
+    word di;
+    word pc;
+    word flags;
+    word cs;
+    word ss;
+    word ds;
+    word es;
+    word ir;
 } extern regs;
 
 enum ExecutionState {
