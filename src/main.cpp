@@ -51,9 +51,10 @@ extern "C" ExecutionState decode_and_execute() {
         * starting by register moving
     */
     
-    // 1-byte opcodes
     regs.ir = htons(regs.ir);
-    cout << "[DBG] regs.ir: " << regs.ir << "\n";
+    
+    // 1-byte opcodes
+    cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch ((regs.ir) >> 8) {
         case NOP: {
             cout << "[DBG] NOP found\n";
@@ -68,34 +69,32 @@ extern "C" ExecutionState decode_and_execute() {
     
     // 2-byte opcodes test
     cout << "[DBG] testing 2-byte opcodes";
- // os registradores AL e AX sempre estarão em big endian
- // por isso "&AL" e "&AH" (al e ah são diretivas definidas em Base.h)
- // são o oposto
     switch( (regs.ir) >> 8 ) {
         case INT: {
-            cout << "INT!\n";
-            switch( (regs.ax)&AH ) {
-                
-                //case 0x10: { // BIOS VIDEO SERVICE
-             default: {
-                    cout << "[DBG] BIOS VIDEO SERVICE";
-                    cout << "regs.ax&AH: " << itoh((regs.ax)&AH);
-                    switch( (regs.ax)&AL ) { // AH
-                        case 0x0e: { // DISPLAY CARACTER
-                            cout << ((regs.ax)&AL); cout << "teste";
-                            break;
-                        };
-                        default: {
-                            cout << "?";
-                            break;
-                        };
+
+            // Interruptions
+            
+            cout << "regs.ir: " << itoh(regs.ir) << "\n";
+            switch( (regs.ir)&AL ) {
+              case 0x10: { // BIOS VIDEO SERVICE
+                cout << "[DBG] BIOS VIDEO SERVICE\n";
+                cout << "regs.ax&AH: " << itoh((regs.ax)&AH) << "\n";
+                switch( ((regs.ax)&AH)>>8 ) { // AH
+                    case 0x0e: { // DISPLAY CARACTER
+                        cout << (char)((regs.ax)&AL);
+                        break;
                     };
-                    break;
+                    default: {
+                        cout << "?";
+                        break;
+                    };
                 };
+                break;
+              };
    
-                case 0x03: {
-                   while(true);
-                };
+              case 0x03: {
+                while(true);
+              };
                 
             }
             
@@ -111,7 +110,6 @@ extern "C" ExecutionState decode_and_execute() {
         
         default: {
             //cout << "CPU Fault";
-            cout << "a\n";
             //while(true);
             regs.pc+=2;
         };
@@ -126,7 +124,7 @@ extern "C" void start_execution_by_clock() {
         //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
         
         word instruction_offset = (regs.cs*16) + regs.pc;
-        regs.ir = *(virtual_memory_base_address+regs.cs+regs.pc);
+        regs.ir = *((short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
         decode_and_execute();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
@@ -162,6 +160,7 @@ extern "C" int main(int argc, char *argv[]) {
         
         regs.pc = 0x7c00;
         regs.cs = 0;
+        regs.ax = 0x0e0e;
         
         start_execution_by_clock();
         
