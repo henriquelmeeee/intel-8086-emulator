@@ -110,7 +110,7 @@ extern "C" ExecutionState decode_and_execute() {
             //cout << "CPU Fault";
             cout << "a\n";
             //while(true);
-            pc+=2;
+            regs.pc+=2;
         };
     }
 
