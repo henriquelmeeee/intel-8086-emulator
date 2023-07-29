@@ -145,7 +145,7 @@ extern "C" int main(int argc, char *argv[]) {
                     
         cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
         
-        FILE* disk = std::fopen("source", "rw");
+        FILE* disk = std::fopen("source", "rb");
         if(!disk) {
          cout << "Erro ao ler arquivo"; return -1; }
         byte buffer[512];
