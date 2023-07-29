@@ -55,6 +55,7 @@ extern "C" ExecutionState decode_and_execute() {
     regs.ir = htons(regs.ir);
     switch ((regs.ir) >> 8) {
         case NOP: {
+            cout << "achamo nop\n";
             ++regs.pc;
             break;
         };
@@ -66,11 +67,11 @@ extern "C" ExecutionState decode_and_execute() {
     // 2-byte opcodes test
     switch( (regs.ir) >> 8 ) {
         case INT: {
-            
+            cout << "INT!\n";
             switch( (regs.ir)&0x00FF ) {
                 
                 case 0x10: { // BIOS VIDEO SERVICE
-
+                    cout << "bios video service\n";
                     switch( (regs.ax)&AH ) { // AH
                         case 0x0e: { // DISPLAY CARACTER
                             cout << ((regs.ax)&AL);
@@ -143,8 +144,8 @@ extern "C" int main(int argc, char *argv[]) {
         if(!disk) {
          cout << "Erro ao ler arquivo"; return -1; }
         byte buffer[512];
-        std::fread(buffer, sizeof(byte), 512, file);
-        std::fclose(file); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
+        std::fread(buffer, sizeof(byte), 512, disk);
+        std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
         for(int byte_ = 0; byte_ < 512; byte_++) {
             cout << ".";
             *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
