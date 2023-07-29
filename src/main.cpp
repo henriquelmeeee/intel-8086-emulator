@@ -52,7 +52,7 @@ extern "C" ExecutionState decode_and_execute() {
     */
     
     // 1-byte opcodes
-    regs.ir = std::htons(regs.ir);
+    regs.ir = htons(regs.ir);
     switch ((regs.ir) >> 8) {
         case NOP: {
             ++regs.pc;
