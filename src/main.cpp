@@ -12,6 +12,9 @@
 #include <thread>
 #include <chrono>
 
+#include "./Base.h"
+#include "./Instructions.h"
+
 #define cout std::cout
 
 typedef unsigned char byte;
@@ -31,27 +34,6 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 }
 
 int main_clock_freq = 5; // 5 hertz 
-
-struct Registers {
-    /* General-Purposes registers */
-    word ax;
-    /* Code-related registers */
-    word ir;                            // Instruction Register
-    word pc;                            // Program Counter 
-    /* Segmentation-related registers */
-    word cs;                            // Code segment (start address)
-} regs;
-
-enum ExecutionState {
-    SUCCESS,
-    ERROR,
-};
-
-// One-byte instruction
-#define NOP 0x90
-
-// Two-byte instruction
-#define INT 0xCD
 
 void infinite_loop() {
     while(true);
@@ -76,10 +58,6 @@ extern "C" ExecutionState decode_and_execute() {
             break;
         };
     }
-    
-    
-    #define AH 0x00FF
-    #define AL 0xFF00
     
     // 2-byte opcodes test
     switch( (regs.ir) >> 8 ) {
