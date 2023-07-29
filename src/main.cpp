@@ -74,9 +74,13 @@ extern "C" ExecutionState decode_and_execute() {
                         };
                         default: {
                             cout << "?";
-                        }
+                        };
                     }
-                }
+                };
+   
+                case 0x03: {
+                   while(true);
+                };
                 
             }
             
@@ -131,7 +135,7 @@ extern "C" int main(int argc, char *argv[]) {
                     
         cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
         
-        byte *disk = (byte*) std::fopen("/etc/passwd", "rw");
+        byte *disk = (byte*) std::fopen("source", "rw");
         for(int byte_ = 0; byte_ < 512; byte_++) {
             cout << ".";
             *(virtual_memory_base_address+0x7c00+byte_) = *(disk+byte_);
