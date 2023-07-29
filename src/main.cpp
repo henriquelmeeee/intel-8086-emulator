@@ -78,16 +78,19 @@ extern "C" ExecutionState decode_and_execute() {
                 
                 //case 0x10: { // BIOS VIDEO SERVICE
              default: {
-                    cout << "bios video service\n";
+                    cout << "[DBG] BIOS VIDEO SERVICE";
+                    cout << "regs.ax&AH: " << itoh((regs.ax)&AH);
                     switch( (regs.ax)&AL ) { // AH
                         case 0x0e: { // DISPLAY CARACTER
-                            cout << ((regs.ax)&AL);
+                            cout << ((regs.ax)&AL); cout << "teste";
                             break;
                         };
                         default: {
                             cout << "?";
+                            break;
                         };
-                    }
+                    };
+                    break;
                 };
    
                 case 0x03: {
