@@ -18,8 +18,8 @@ enum ExecutionState {
     ERROR,
 };
 
-    
-#define AH 0x00FF
-#define AL 0xFF00
+// LITTLE ENDIAN!!!!!!!
+#define AH 0xFF00
+#define AL 0x00FF
 
 #endif
