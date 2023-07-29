@@ -9,7 +9,7 @@ struct Registers {
     word pc;                            // Program Counter 
     /* Segmentation-related registers */
     word cs;                            // Code segment (start address)
-} regs;
+} extern regs;
 
 enum ExecutionState {
     SUCCESS,
