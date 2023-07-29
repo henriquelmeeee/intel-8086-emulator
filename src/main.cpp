@@ -17,7 +17,8 @@
 #include <netinet/in.h>
 #include <string.h>
 
-#define CONNECT_BY_GDB
+//#define CONNECT_BY_GDB
+#define STEP_BY_STEP
 
 /* GDB protocol configuration */
 
@@ -55,7 +56,9 @@ bool StartGDBCommunication() {
 
 struct Registers regs;
 
+
 #define cout std::cout
+#define flush std::flush
 
 typedef unsigned char byte;
 typedef unsigned short word;
@@ -166,8 +169,7 @@ extern "C" ExecutionState decode_and_execute() {
                 //cout << "[DBG] BIOS VIDEO SERVICE\n";
                 switch( ((regs.ax)&AH)>>8 ) { // AH
                     case 0x0e: { // DISPLAY CARACTER
-                        cout << (char)((regs.ax)&AL);
-                        cout << "sexo";
+                        cout << (char)((regs.ax)&AL) << flush;
                         regs.pc+= 2;
                         return {};
                     }
@@ -194,7 +196,7 @@ extern "C" ExecutionState decode_and_execute() {
     
     /* 3-byte opcode tests */
 
-    imm_value = (short) htons(*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
+    imm_value = (short) (*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
     switch( (regs.ir)>>8 ) {
         
       case 0xB8: { // mov ax, imm16 
@@ -252,7 +254,7 @@ extern "C" ExecutionState decode_and_execute() {
         regs.sp -= 2;
         unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
         *sp_ptr = regs.pc+3;
-        regs.pc += imm_value;
+        regs.pc += imm_value+3;
         return {};
       }
 
@@ -298,6 +300,8 @@ extern "C" void start_execution_by_clock() {
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *((short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
+#ifdef STEP_BY_STEP
+#endif
         decode_and_execute();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
