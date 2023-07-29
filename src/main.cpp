@@ -33,6 +33,8 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 int main_clock_freq = 5; // 5 hertz 
 
 struct Registers {
+    /* General-Purposes registers */
+    word ax;
     /* Code-related registers */
     word ir;                            // Instruction Register
     word pc;                            // Program Counter 
@@ -45,61 +47,93 @@ enum ExecutionState {
     ERROR,
 };
 
-enum OPCODE {
-    NOP,
-    MOV_AL_BL,                          // 0x88D8
-    MOV_AX_BX,                          // 0x89D8
-    MOV_CL,                             // 0xB1+operator
-};
+// One-byte instruction
+#define NOP 0x90
 
+// Two-byte instruction
+#define INT 0xCD
+
+void infinite_loop() {
+    while(true);
+}
 
 extern "C" ExecutionState decode_and_execute() {
-    OPCODE Opcode;
     /*
         * We will try to detect the operational code of the actual instruction 
+        * First we will try to decode one-byte code
+        * If we found nothing, we will try to decode 2-byte instructions 
+        * starting by register moving
     */
     
-    // 2-byte opcodes test
-    switch( (regs.pc) ) {
-        case MOV_AL_BL: {
-            regs.al = regs.bl; // TODO al e bl são apenas partes inferiores do BX e AX
-            pc+=2;
-            break;
-        };
-        
-        case MOV_AX_BX: {
-            regs.ax = regs.bx;
-            pc+=2;
+    // 1-byte opcodes
+    regs.ir = NOP; // just test
+    switch ((regs.ir) >> 8) {
+        case NOP: {
+            ++regs.pc;
             break;
         };
         default: {
-            cout << "Nenhum OPCODE de 2 bytes válido encontrado, tentando apenas de 1 byte...\n";
             break;
         };
     }
     
-    switch( (regs.pc)>>8 ) {
+    
+    #define AH 0x00FF
+    #define AL 0xFF00
+    
+    // 2-byte opcodes test
+    switch( (regs.ir) >> 8 ) {
+        case INT: {
+            
+            switch( (regs.ir)&0x00FF ) {
+                
+                case 0x10: { // BIOS VIDEO SERVICE
+
+                    switch( (regs.ax)&AH ) { // AH
+                        case 0x0e: { // DISPLAY CARACTER
+                            cout << ((regs.ax)&AL);
+                            break;
+                        };
+                        default: {
+                            cout << "?";
+                        }
+                    }
+                }
+                
+            }
+            
+            regs.pc+=2;
+            break;
+        };
+        default: {
+            break;
+        };
+    }
+    
+    switch( (regs.ir)>>8 ) {
         case NOP: {
-            pc+=1;
-            brak;
+            regs.pc+=1;
+            break;
         };
         
         default: {
-            cout << "OPCODE inválido detectado!";
+            cout << "CPU Fault";
             while(true);
-        }
+        };
     }
+
+    return {};
 
 }
 
 extern "C" void start_execution_by_clock() {
     while(true) {
-        cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
+        //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
         
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *(virtual_memory_base_address+regs.cs+regs.pc);
-        cout << "Opcode: " << itoh(regs.ir) << "\n";
-        
+        //cout << "Opcode: " << itoh(regs.ir) << "\n";
+        decode_and_execute();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
 }
