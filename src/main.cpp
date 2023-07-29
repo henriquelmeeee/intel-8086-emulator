@@ -61,21 +61,25 @@ extern "C" ExecutionState decode_and_execute() {
             break;
         };
         default: {
-            count << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
+            cout << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
             break;
         };
     }
     
     // 2-byte opcodes test
     cout << "[DBG] testing 2-byte opcodes";
+ // os registradores AL e AX sempre estarão em big endian
+ // por isso "&AL" e "&AH" (al e ah são diretivas definidas em Base.h)
+ // são o oposto
     switch( (regs.ir) >> 8 ) {
         case INT: {
             cout << "INT!\n";
-            switch( (regs.ir)&0x00FF ) {
+            switch( (regs.ax)&AH ) {
                 
-                case 0x10: { // BIOS VIDEO SERVICE
+                //case 0x10: { // BIOS VIDEO SERVICE
+             default: {
                     cout << "bios video service\n";
-                    switch( (regs.ax)&AH ) { // AH
+                    switch( (regs.ax)&AL ) { // AH
                         case 0x0e: { // DISPLAY CARACTER
                             cout << ((regs.ax)&AL);
                             break;
