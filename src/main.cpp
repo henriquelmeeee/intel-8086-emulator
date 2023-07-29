@@ -15,6 +15,8 @@
 #include "./Base.h"
 #include "./Instructions.h"
 
+struct Registers regs;
+
 #define cout std::cout
 
 typedef unsigned char byte;
