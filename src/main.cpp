@@ -12,6 +12,8 @@
 #include <thread>
 #include <chrono>
 
+#include <arpa/inet.h>
+
 #include "./Base.h"
 #include "./Instructions.h"
 
