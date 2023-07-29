@@ -53,18 +53,21 @@ extern "C" ExecutionState decode_and_execute() {
     
     // 1-byte opcodes
     regs.ir = htons(regs.ir);
+    cout << "[DBG] regs.ir: " << regs.ir << "\n";
     switch ((regs.ir) >> 8) {
         case NOP: {
-            cout << "achamo nop\n";
+            cout << "[DBG] NOP found\n";
             ++regs.pc;
             break;
         };
         default: {
+            count << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
             break;
         };
     }
     
     // 2-byte opcodes test
+    cout << "[DBG] testing 2-byte opcodes";
     switch( (regs.ir) >> 8 ) {
         case INT: {
             cout << "INT!\n";
@@ -98,14 +101,12 @@ extern "C" ExecutionState decode_and_execute() {
     }
     
     switch( (regs.ir)>>8 ) {
-        case NOP: {
-            regs.pc+=1;
-            break;
-        };
         
         default: {
-            cout << "CPU Fault";
-            while(true);
+            //cout << "CPU Fault";
+            cout << "a\n";
+            //while(true);
+            pc+=2;
         };
     }
 
