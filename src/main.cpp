@@ -13,6 +13,40 @@
 #include <chrono>
 
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <string.h>
+
+/* GDB protocol configuration */
+
+#define PORT 1234
+
+int serverSocket, newSocket;
+char data_buffer[1024];
+struct sockaddr_in serverAddr;
+struct sockaddr_storage serverStorage;
+socklen_t addr_size;
+
+bool StartGDBCommunication() {
+  serverSocket = socket(PF_INET, SOCK_STREAM, 0);
+
+  serverAddr.sin_family = AF_INET;
+  serverAddr.sin_port = htons(PORT);
+  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+  memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
+
+  bind(serverSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
+
+  if(listen(serverSocket, 1)==0)
+    std::cout << "Waiting for GDB";
+  else
+    return false;
+
+  addr_size = sizeof serverStorage;
+  newSocket = accept(serverSocket, (struct sockaddr *) &serverStorage, &addr_size);
+
+  return true;
+}
 
 #include "./Base.h"
 #include "./Instructions.h"
@@ -220,10 +254,27 @@ extern "C" ExecutionState decode_and_execute() {
 
 }
 
+const char* supported_features_gdb_response = "$#00";
+
 extern "C" void start_execution_by_clock() {
     while(true) {
         //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
-        
+        if(serverSocket != 0) {
+          while(true) {
+            memset(data_buffer, 0, sizeof(data_buffer));
+            ssize_t numBytesRcvd = recv(newSocket, data_buffer, sizeof(data_buffer), 0);
+            if(numBytesRcvd == 0) {
+              cout << "Connection closed by the client\n";
+              return;
+            }
+            if(strncmp(data_buffer, "+$qSupported", 12) == 0) {
+              send(newSocket, supported_features_gdb_response, strlen(supported_features_gdb_response), 0);
+            } else if (data_buffer[1] == 'p') {
+              //GDBCommunication:handle_p_command(((word*)&regs)[atoi(data_buffer+2)]);
+
+            }
+          }
+        }
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *((short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
@@ -241,15 +292,21 @@ extern "C" int main(int argc, char *argv[]) {
         cout << "Faltam argumentos";
         return -1;
     } else {
-        virtual_memory_base_address = (byte*) mmap(NULL, 512*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-        cout << "Endereço base da memória virtual alocada (512MB): 0x" \
-                    << itoh((unsigned long)virtual_memory_base_address) << "\n";
+      serverSocket = 0;
+#define CONNECT_BY_GDB
+      #ifdef CONNECT_BY_GDB
+        //if(!StartGDBCommunication())
+          //return -1;
+      #endif
+      virtual_memory_base_address = (byte*) mmap(NULL, 512*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      cout << "Endereço base da memória virtual alocada (512MB): 0x" \
+                  << itoh((unsigned long)virtual_memory_base_address) << "\n";
                     
-        cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
+      cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
         
-        FILE* disk = std::fopen("source", "rb");
-        if(!disk) {
-         cout << "Erro ao ler arquivo"; return -1; }
+      FILE* disk = std::fopen("source", "rb");
+      if(!disk) {
+        cout << "Erro ao ler arquivo"; return -1; }
         byte buffer[512];
         std::fread(buffer, sizeof(byte), 512, disk);
         std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
