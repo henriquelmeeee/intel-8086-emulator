@@ -1,6 +1,8 @@
 #ifndef BASE
 #define BASE
 
+typedef unsigned short word;
+
 struct Registers {
     /* General-Purposes registers */
     word ax;
