@@ -82,7 +82,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
     return rc;
 }
 
-int main_clock_freq = 5; // 5 hertz 
+int main_clock_freq = 50; // 5 hertz 
 
 void infinite_loop() {
     while(true);
