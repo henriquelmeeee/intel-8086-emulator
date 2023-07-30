@@ -19,6 +19,7 @@
 
 //#define CONNECT_BY_GDB
 #define STEP_BY_STEP
+#define VIDEO_MEMORY_BASE 0xB8000
 
 /* GDB protocol configuration */
 
@@ -179,11 +180,10 @@ extern "C" ExecutionState decode_and_execute() {
                       return {};
                     }
                     case 0x02: { // CHANGE CURSOR
-                      unsigned short line = (regs.dx)&AH;
+                      unsigned short line = ((regs.dx)&AH)>>8;
                       unsigned short column = (regs.dx)&AL;
-                      unsigned short video_page = (regs.bx)&AH;
-                      cout << "line: " << line << "\ncolumn: " << column << "\n";
-                      move_cursor(line+1, column+1);
+                      unsigned short video_page = ((regs.bx)&AH)>>8;
+                      move_cursor(line, column);
                       regs.pc += 2;
                       return {};
                     };
@@ -355,6 +355,8 @@ extern "C" int main(int argc, char *argv[]) {
         regs.cs = 0;
         regs.ss = 0;
         regs.ds = 0;
+
+        system("clear");
         
         start_execution_by_clock();
         
