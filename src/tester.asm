@@ -5,24 +5,52 @@ main:
   ;mov ah, 0x0e
   ;mov al, 'O'
   mov ah, 0x0e
-  mov al, 'h'
+  mov al, 'v'
   int 0x10
   call teste
   nop
 
 teste:
   mov ah, 0x0e
-  mov al, 'e'
+  mov al, 'o'
   int 0x10
-  mov al, 'l'
+  mov al, 'u'
   int 0x10
-  mov al, 'l'
+  mov al, ' '
+  int 0x10
+  mov al, 'p'
+  int 0x10
+  mov al, 'r'
+  int 0x10
+  mov al, 'a'
+  int 0x10
+  mov al, ' '
   int 0x10
   mov al, 'o'
   int 0x10
+  mov al, 'u'
+  int 0x10
+  mov al, 't'
+  int 0x10
+  mov al, 'r'
+  int 0x10
+  mov al, 'a'
+  int 0x10
+  mov al, ' '
+  int 0x10
+  mov al, 'l'
+  int 0x10
+  mov al, 'i'
+  int 0x10
+  mov al, 'n'
+  int 0x10
+  mov al, 'h'
+  int 0x10
+  mov al, 'a'
+  int 0x10
   mov al, '!'
   int 0x10
-  mov dh, 2 ; linha 1
+  mov dh, 1 ; linha 1
   mov bl, 2
   mov bh, 2
   mov ah, 0x02
