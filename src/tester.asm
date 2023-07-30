@@ -4,13 +4,12 @@
 main:
   ;mov ah, 0x0e
   ;mov al, 'O'
-  mov ah, 0x0e
-  mov al, 'v'
-  int 0x10
-  nop
+  call teste
 
 teste:
   mov ah, 0x0e
+  mov al, 'v'
+  int 0x10
   mov al, 'o'
   int 0x10
   mov al, 'u'
@@ -54,7 +53,7 @@ teste:
   ;mov bh, 2
   ;mov ah, 0x02
   ;int 0x10
-  jmp main
+  jmp teste
 
 times 512 - ($ - $$)  db 0
 dw 0xAA55

@@ -112,7 +112,6 @@ extern "C" ExecutionState decode_and_execute() {
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch( (regs.ir) >> 8 ) {
         case NOP: {
-            cout << "NOP\n";
             ++regs.pc;
             return {};
         };
