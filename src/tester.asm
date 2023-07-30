@@ -7,7 +7,6 @@ main:
   mov ah, 0x0e
   mov al, 'v'
   int 0x10
-  call teste
   nop
 
 teste:
@@ -50,11 +49,11 @@ teste:
   int 0x10
   mov al, '!'
   int 0x10
-  mov dh, 1 ; linha 1
-  mov bl, 2
-  mov bh, 2
-  mov ah, 0x02
-  int 0x10
+  ;mov dh, 1 ; linha 1
+  ;mov bl, 2
+  ;mov bh, 2
+  ;mov ah, 0x02
+  ;int 0x10
   jmp main
 
 times 512 - ($ - $$)  db 0

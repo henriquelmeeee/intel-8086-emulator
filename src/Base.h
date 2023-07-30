@@ -19,7 +19,7 @@ struct Registers {
     word ss;
     word ds;
     word es;
-    word ir;
+    unsigned short ir;
 } extern regs;
 
 enum ExecutionState {

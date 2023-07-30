@@ -6,6 +6,8 @@
 */
 
 #include <iostream>
+#include <fstream>
+
 #include <stdlib.h>
 #include <sys/mman.h>
 
@@ -16,6 +18,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <string.h>
+
+
+int iterations = 0;
 
 //#define CONNECT_BY_GDB
 #define STEP_BY_STEP
@@ -57,6 +62,12 @@ bool StartGDBCommunication() {
 
 struct Registers regs;
 
+void dump_registers () {
+  std::cout << "Instruction Register: " << regs.ir << "\n";
+  std::cout << "Instruction Pointer: " << regs.pc << "\n";
+  return;
+}
+
 void move_cursor(short x, short y) {
   std::cout.flush();
   printf("\033[%d;%dH", x+1, y+1);
@@ -82,7 +93,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
     return rc;
 }
 
-int main_clock_freq = 50; // 5 hertz 
+int main_clock_freq = 3000; // 5 mhz
 
 void infinite_loop() {
     while(true);
@@ -99,9 +110,9 @@ extern "C" ExecutionState decode_and_execute() {
     regs.ir = htons(regs.ir);
     // 1-byte opcodes
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
-    switch ((regs.ir) >> 8) {
+    switch( (regs.ir) >> 8 ) {
         case NOP: {
-            //cout << "[DBG] NOP found\n";
+            cout << "NOP\n";
             ++regs.pc;
             return {};
         };
@@ -116,6 +127,7 @@ extern "C" ExecutionState decode_and_execute() {
     switch( (regs.ir) >> 8 ) {
 
         case 0xB0: { // mov al, imm8
+          cout << "mov al, imm8\n";
           regs.ax = (regs.ax&AH) | imm_value;
           regs.pc += 2;
           return {};
@@ -175,7 +187,8 @@ extern "C" ExecutionState decode_and_execute() {
                 //cout << "[DBG] BIOS VIDEO SERVICE\n";
                 switch( ((regs.ax)&AH)>>8 ) { // AH
                     case 0x0e: { // DISPLAY CARACTER
-                      cout << (char)((regs.ax)&AL) << flush;
+                      //cout << (char)((regs.ax)&AL) << flush;
+                      cout << "int 0x10\n";
                       regs.pc+= 2;
                       return {};
                     }
@@ -183,8 +196,9 @@ extern "C" ExecutionState decode_and_execute() {
                       unsigned short line = ((regs.dx)&AH)>>8;
                       unsigned short column = (regs.dx)&AL;
                       unsigned short video_page = ((regs.bx)&AH)>>8;
-                      move_cursor(line, column);
+                      //move_cursor(line, column);
                       regs.pc += 2;
+                      cout << "int 0x10 change cursor\n";
                       return {};
                     };
                 };
@@ -192,7 +206,7 @@ extern "C" ExecutionState decode_and_execute() {
               };
    
               case 0x03: {
-                while(true);
+                           exit(1);
               };
                 
             }
@@ -259,6 +273,7 @@ extern "C" ExecutionState decode_and_execute() {
         /* Stack-related */
 
       case 0xE8: { // call in same-segment (code-segment)
+        cout << "call same-segment\n";
         imm_value = (signed short) imm_value;
         regs.sp -= 2;
         unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
@@ -268,14 +283,17 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0xEB: { // jmp short in same-segment
+        cout << "jmp short\n";
         signed char offset = (signed char) (imm_value & 0xFF);
         regs.pc+=(offset+2);
         return {};
       }
 
       default: {
-        cout << "CPU Fault";
-        while(true);
+        cout << "CPU Fault!\n";
+        dump_registers();
+        cout << "Iterations: " << iterations;
+        exit(1);
         return {};
       };
     }
@@ -307,10 +325,11 @@ extern "C" void start_execution_by_clock() {
           }
         }
         word instruction_offset = (regs.cs*16) + regs.pc;
-        regs.ir = *((short*)(virtual_memory_base_address+regs.cs+regs.pc));
+        regs.ir = *((unsigned short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
 #ifdef STEP_BY_STEP
 #endif
+        ++iterations;
         decode_and_execute();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
@@ -325,12 +344,17 @@ extern "C" int main(int argc, char *argv[]) {
         cout << "Faltam argumentos";
         return -1;
     } else {
+      //std::ofstream out("debug");
+      //std::streambuf *coutbuf = cout.rdbuf();
+      //cout.rdbuf(out.rdbuf());
+
+      
       serverSocket = 0;
       #ifdef CONNECT_BY_GDB
         if(!StartGDBCommunication())
           return -1;
       #endif
-      virtual_memory_base_address = (byte*) mmap(NULL, 512*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+      virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
       cout << "Endereço base da memória virtual alocada (512MB): 0x" \
                   << itoh((unsigned long)virtual_memory_base_address) << "\n";
                     
@@ -351,7 +375,7 @@ extern "C" int main(int argc, char *argv[]) {
         }
         cout << "\n";
         
-        regs.pc = 0x7c00;
+        regs.pc = (unsigned short)0x7c00;
         regs.cs = 0;
         regs.ss = 0;
         regs.ds = 0;
