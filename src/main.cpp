@@ -56,6 +56,11 @@ bool StartGDBCommunication() {
 
 struct Registers regs;
 
+void move_cursor(short x, short y) {
+  std::cout.flush();
+  printf("\033[%d;%dH", x+1, y+1);
+  std::cout.flush();
+}
 
 #define cout std::cout
 #define flush std::flush
@@ -169,14 +174,18 @@ extern "C" ExecutionState decode_and_execute() {
                 //cout << "[DBG] BIOS VIDEO SERVICE\n";
                 switch( ((regs.ax)&AH)>>8 ) { // AH
                     case 0x0e: { // DISPLAY CARACTER
-                        cout << (char)((regs.ax)&AL) << flush;
-                        regs.pc+= 2;
-                        return {};
+                      cout << (char)((regs.ax)&AL) << flush;
+                      regs.pc+= 2;
+                      return {};
                     }
-                    default: {
-                        cout << "?";
-                        regs.pc += 2;
-                        return {};
+                    case 0x02: { // CHANGE CURSOR
+                      unsigned short line = (regs.dx)&AH;
+                      unsigned short column = (regs.dx)&AL;
+                      unsigned short video_page = (regs.bx)&AH;
+                      cout << "line: " << line << "\ncolumn: " << column << "\n";
+                      move_cursor(line+1, column+1);
+                      regs.pc += 2;
+                      return {};
                     };
                 };
                 break;
@@ -259,8 +268,8 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0xEB: { // jmp short in same-segment
-        imm_value = (signed char) (imm_value>>8);
-        regs.pc+=imm_value;
+        signed char offset = (signed char) (imm_value & 0xFF);
+        regs.pc+=(offset+2);
         return {};
       }
 
