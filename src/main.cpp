@@ -93,7 +93,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
     return rc;
 }
 
-int main_clock_freq = 3000; // 5 mhz
+int main_clock_freq = 30; // 5 mhz
 
 void infinite_loop() {
     while(true);
@@ -126,7 +126,6 @@ extern "C" ExecutionState decode_and_execute() {
     switch( (regs.ir) >> 8 ) {
 
         case 0xB0: { // mov al, imm8
-          cout << "mov al, imm8\n";
           regs.ax = (regs.ax&AH) | imm_value;
           regs.pc += 2;
           return {};
@@ -186,8 +185,7 @@ extern "C" ExecutionState decode_and_execute() {
                 //cout << "[DBG] BIOS VIDEO SERVICE\n";
                 switch( ((regs.ax)&AH)>>8 ) { // AH
                     case 0x0e: { // DISPLAY CARACTER
-                      //cout << (char)((regs.ax)&AL) << flush;
-                      cout << "int 0x10\n";
+                      cout << (char)((regs.ax)&AL) << flush;
                       regs.pc+= 2;
                       return {};
                     }
@@ -195,9 +193,8 @@ extern "C" ExecutionState decode_and_execute() {
                       unsigned short line = ((regs.dx)&AH)>>8;
                       unsigned short column = (regs.dx)&AL;
                       unsigned short video_page = ((regs.bx)&AH)>>8;
-                      //move_cursor(line, column);
+                      move_cursor(line, column);
                       regs.pc += 2;
-                      cout << "int 0x10 change cursor\n";
                       return {};
                     };
                 };
@@ -272,7 +269,6 @@ extern "C" ExecutionState decode_and_execute() {
         /* Stack-related */
 
       case 0xE8: { // call in same-segment (code-segment)
-        cout << "call same-segment\n";
         imm_value = (signed short) imm_value;
         regs.sp -= 2;
         unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
@@ -282,7 +278,6 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0xEB: { // jmp short in same-segment
-        cout << "jmp short\n";
         signed char offset = (signed char) (imm_value & 0xFF);
         regs.pc+=(offset+2);
         return {};
@@ -380,6 +375,7 @@ extern "C" int main(int argc, char *argv[]) {
         regs.ds = 0;
 
         system("clear");
+
         
         start_execution_by_clock();
         

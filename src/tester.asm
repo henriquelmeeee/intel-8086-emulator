@@ -48,11 +48,11 @@ teste:
   int 0x10
   mov al, '!'
   int 0x10
-  ;mov dh, 1 ; linha 1
-  ;mov bl, 2
-  ;mov bh, 2
-  ;mov ah, 0x02
-  ;int 0x10
+  mov dh, 1 ; linha 1
+  mov bl, 0
+  mov bh, 0
+  mov ah, 0x02
+  int 0x10
   jmp teste
 
 times 512 - ($ - $$)  db 0
