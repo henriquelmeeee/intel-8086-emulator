@@ -123,94 +123,111 @@ extern "C" ExecutionState decode_and_execute() {
 
     // 2-byte opcodes test
     byte imm_value = *(virtual_memory_base_address+(regs.cs*16)+regs.pc+1);
+    signed char offset_1byte = (signed char) imm_value; // conditional jmps
     switch( (regs.ir) >> 8 ) {
+      case 0xB0: { // mov al, imm8
+        regs.ax = (regs.ax&AH) | imm_value;
+        regs.pc += 2;
+        return {};
+      }
 
-        case 0xB0: { // mov al, imm8
-          regs.ax = (regs.ax&AH) | imm_value;
-          regs.pc += 2;
-          return {};
-        }
+      case 0xB1: { // mov cl, imm8
+        regs.cx = (regs.cx&AH) | imm_value;
+        regs.pc += 2;
+        return {};
+      }
 
-        case 0xB1: { // mov cl, imm8
-          regs.cx = (regs.cx&AH) | imm_value;
-          regs.pc += 2;
-          return {};
-        }
+      case 0xB2: { // mov dl, imm8
+        regs.dx = (regs.dx&AH) | imm_value;
+        regs.pc += 2;
+        return {};
+      }
 
-        case 0xB2: { // mov dl, imm8
-          regs.dx = (regs.dx&AH) | imm_value;
-          regs.pc += 2;
-          return {};
-        }
+      case 0xB3: { // mov bl, imm8
+        regs.bx = (regs.bx&AH) | imm_value;
+        regs.pc += 2;
+        return {};
+      }
 
-        case 0xB3: { // mov bl, imm8
-          regs.bx = (regs.bx&AH) | imm_value;
-          regs.pc += 2;
-          return {};
-        }
 
-        /* AH (high) movs */
+      /* AH (high) movs */
 
-        case 0xB4: { //mov ah, imm 8
-          regs.ax = (regs.ax&AL) | (imm_value<<8);
-          regs.pc += 2;
-          return {};
-        }
+      case 0xB4: { //mov ah, imm 8
+        regs.ax = (regs.ax&AL) | (imm_value<<8);
+        regs.pc += 2;
+        return {};
+      }
 
-        case 0xB5: { // mov ch, imm8
-          regs.cx = (regs.cx&AL) | (imm_value<<8);
-          regs.pc += 2;
-          return {}; 
-        }
+      case 0xB5: { // mov ch, imm8
+        regs.cx = (regs.cx&AL) | (imm_value<<8);
+        regs.pc += 2;
+        return {}; 
+      }
 
-        case 0xB6: { //mov dh, imm8
-          regs.dx = (regs.dx&AL) | (imm_value<<8);
-          regs.pc += 2;
-          return {};
-        }
 
-        case 0xB7: { // mov bh, imm8
-          regs.bx = (regs.bx&AL) | (imm_value<<8);
-          regs.pc += 2;
-          return {};
-        }
+      case 0xB6: { //mov dh, imm8
+        regs.dx = (regs.dx&AL) | (imm_value<<8);
+        regs.pc += 2;
+        return {};
+      }
 
-        case INT: {
 
-            // Interruptions
+      case 0xB7: { // mov bh, imm8
+        regs.bx = (regs.bx&AL) | (imm_value<<8);
+        regs.pc += 2;
+        return {};
+      }
+
+
+      case INT: {
+        // Interruptions
             
-            //cout << "regs.ir: " << itoh(regs.ir) << "\n";
-            switch( (regs.ir)&AL ) {
-              case 0x10: { // BIOS VIDEO SERVICE
-                //cout << "[DBG] BIOS VIDEO SERVICE\n";
-                switch( ((regs.ax)&AH)>>8 ) { // AH
-                    case 0x0e: { // DISPLAY CARACTER
-                      cout << (char)((regs.ax)&AL) << flush;
-                      regs.pc+= 2;
-                      return {};
-                    }
-                    case 0x02: { // CHANGE CURSOR
-                      unsigned short line = ((regs.dx)&AH)>>8;
-                      unsigned short column = (regs.dx)&AL;
-                      unsigned short video_page = ((regs.bx)&AH)>>8;
-                      move_cursor(line, column);
-                      regs.pc += 2;
-                      return {};
-                    };
+        //cout << "regs.ir: " << itoh(regs.ir) << "\n";
+        switch( (regs.ir)&AL ) {
+          case 0x10: { // BIOS VIDEO SERVICE
+            //cout << "[DBG] BIOS VIDEO SERVICE\n";
+            switch( ((regs.ax)&AH)>>8 ) { // AH
+                case 0x0e: { // DISPLAY CARACTER
+                  cout << (char)((regs.ax)&AL) << flush;
+                  regs.pc+= 2;
+                  return {};
+                }
+                case 0x02: { // CHANGE CURSOR
+                  unsigned short line = ((regs.dx)&AH)>>8;
+                  unsigned short column = (regs.dx)&AL;
+                  unsigned short video_page = ((regs.bx)&AH)>>8;
+                  move_cursor(line, column);
+                  regs.pc += 2;
+                  return {};
                 };
-                break;
-              };
+            };
+            break;
+          };
    
-              case 0x03: {
-                           exit(1);
-              };
+          case 0x03: {
+            exit(1);
+          };
                 
-            }
-            break;
-        };
-        default: {
-            break;
-        };
+        }
+        break;
+      };
+  
+      /* Conditional Jumps */
+
+
+      case 0x77: { // ja/jnbe (>=)
+        if(CF == 0 && ZF == 0) {
+          regs.pc += (offset_1byte)+2;
+          return {};
+        }
+        regs.pc += 2;
+        return {};
+      }
+
+
+      default: {
+        break;
+      };
     };
     
     /* 3-byte opcode tests */
@@ -265,8 +282,7 @@ extern "C" ExecutionState decode_and_execute() {
         regs.pc += 3;
         return {};
       }
-
-        /* Stack-related */
+       /* Stack-related */
 
       case 0xE8: { // call in same-segment (code-segment)
         imm_value = (signed short) imm_value;
@@ -373,6 +389,7 @@ extern "C" int main(int argc, char *argv[]) {
         regs.cs = 0;
         regs.ss = 0;
         regs.ds = 0;
+        regs.flags = 0;
 
         system("clear");
 

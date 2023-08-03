@@ -53,7 +53,7 @@ teste:
   mov bh, 0
   mov ah, 0x02
   int 0x10
-  jmp teste
+  ja teste
 
 times 512 - ($ - $$)  db 0
 dw 0xAA55
