@@ -9,6 +9,7 @@
 #define VIDEO_MEMORY_BASE 0xB8000
 #define VIDEO_WIDTH 80
 #define VIDEO_HEIGHT 25
+
 extern unsigned long cursor_location;
 
 #define RETURN return {}

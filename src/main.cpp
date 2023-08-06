@@ -24,12 +24,13 @@
 int iterations = 0;
 
 #include <map>
+#include "Instructions.h"
 
-std::map<unsigned char, std::string> opcode_map = {
-  {0xE8, "CALL rel16"},
-  {0x04, "ADD al, imm8"},
-  {0x72, "JB rel8"},
-  {0x90, "NOP"},
+std::map<unsigned char, struct InstructionInfo> opcode_map = {
+  {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
+  {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
+  {0x72, {2, InstructionHandler::NotImplemented, "JB rel8"}},
+  {0x90, {1, InstructionHandler::_NOP, "NOP"}},
 };
 
 
@@ -411,7 +412,7 @@ const char* supported_features_gdb_response = "$#00";
 char user_buffer[32];
 
 void inline wait_for_user() {
-  cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir] << "\n\n";
+  cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir].name << "\n\n";
   while(true) {
     cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address" << "\n> ";
   
@@ -428,7 +429,7 @@ void inline wait_for_user() {
       short value = ((short) *((char*)virtual_memory_base_address+address_to_read));
       cout << "\nValue (signed): " << value;
       cout << "\nValue (unsigned): " << (unsigned short)value;
-      cout << "\nInstruction (if valid): " << opcode_map[value];
+      cout << "\nInstruction (if valid): " << opcode_map[value].name;
       cout << "\n";
     } else if (strncmp(user_buffer, "wr", 2) == 0){
       cout << "Address to write: " << address_to_read;

@@ -7,6 +7,10 @@ typedef unsigned short word;
 #include <string>
 #include <map>
 
+extern std::map<unsigned char, struct InstructionInfo> opcode_map;
+
+#include "Instructions.h"
+
 struct FlagsRegister {
   word CF : 1;
   word rsvd : 1;
@@ -99,5 +103,9 @@ enum ExecutionState {
 // LITTLE ENDIAN!!!!!!!
 #define AH 0xFF00
 #define AL 0x00FF
+
+namespace Instruction {
+  #define NOP 0x90
+}
 
 #endif
