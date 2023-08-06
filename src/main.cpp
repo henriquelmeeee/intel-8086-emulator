@@ -19,16 +19,13 @@
 #include <netinet/in.h>
 #include <string.h>
 
+#include "Utils.h"
 
 int iterations = 0;
 
-//#define CONNECT_BY_GDB
-#define STEP_BY_STEP
-#define VIDEO_MEMORY_BASE 0xB8000
+unsigned long cursor_location = VIDEO_MEMORY_BASE;
 
 /* GDB protocol configuration */
-
-#define PORT 1234
 
 int serverSocket, newSocket;
 char data_buffer[1024];
@@ -36,7 +33,7 @@ struct sockaddr_in serverAddr;
 struct sockaddr_storage serverStorage;
 socklen_t addr_size;
 
-bool StartGDBCommunication() {
+/*bool StartGDBCommunication() {
   serverSocket = socket(PF_INET, SOCK_STREAM, 0);
 
   serverAddr.sin_family = AF_INET;
@@ -55,23 +52,25 @@ bool StartGDBCommunication() {
   newSocket = accept(serverSocket, (struct sockaddr *) &serverStorage, &addr_size);
 
   return true;
-}
+}*/
 
 #include "./Base.h"
 #include "./Instructions.h"
 
 struct Registers regs;
 
-void dump_registers () {
-  std::cout << "Instruction Register: " << regs.ir << "\n";
-  std::cout << "Instruction Pointer: " << regs.pc << "\n";
-  return;
-}
+
 
 void move_cursor(short x, short y) {
   std::cout.flush();
   printf("\033[%d;%dH", x+1, y+1);
   std::cout.flush();
+
+  /* Simulate the cursor of text-mode */
+
+
+  cursor_location = (y*VIDEO_WIDTH) + x + VIDEO_MEMORY_BASE;
+
 }
 
 #define cout std::cout
@@ -93,10 +92,31 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
     return rc;
 }
 
-int main_clock_freq = 30; // 5 mhz
+void dump_registers () {
+  cout << "Instruction Register: " << itoh(regs.ir) << "\n";
+  cout << "Instruction Pointer: " << itoh(regs.pc) << "\n";
+  return;
+}
+
+int main_clock_freq = 30;
 
 void infinite_loop() {
     while(true);
+}
+
+void cursor_update_byone() {
+  // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
+  // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
+  int y = (cursor_location-VIDEO_MEMORY_BASE)/VIDEO_WIDTH;
+  int x = (cursor_location-VIDEO_MEMORY_BASE)%VIDEO_WIDTH;
+
+  if(x>=VIDEO_WIDTH) {
+    ++y; x=0;
+  } else {
+    ++x;
+  }
+
+  return;
 }
 
 extern "C" ExecutionState decode_and_execute() {
@@ -190,6 +210,8 @@ extern "C" ExecutionState decode_and_execute() {
                 case 0x0e: { // DISPLAY CARACTER
                   cout << (char)((regs.ax)&AL) << flush;
                   regs.pc+= 2;
+
+                  cursor_update_byone();
                   return {};
                 }
                 case 0x02: { // CHANGE CURSOR
