@@ -11,6 +11,8 @@
 #define VIDEO_HEIGHT 25
 extern unsigned long cursor_location;
 
+#define RETURN return {}
+
 /* GDB-related */
   #define PORT 1234
   

@@ -59,8 +59,6 @@ socklen_t addr_size;
 
 struct Registers regs;
 
-
-
 void move_cursor(short x, short y) {
   std::cout.flush();
   printf("\033[%d;%dH", x+1, y+1);
@@ -107,6 +105,7 @@ void infinite_loop() {
 void cursor_update_byone() {
   // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
   // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
+  // btw o código abaixo (calcular X e Y) é inútil por enquanto
   int y = (cursor_location-VIDEO_MEMORY_BASE)/VIDEO_WIDTH;
   int x = (cursor_location-VIDEO_MEMORY_BASE)%VIDEO_WIDTH;
 
@@ -116,7 +115,13 @@ void cursor_update_byone() {
     ++x;
   }
 
+  ++cursor_location;
+
   return;
+}
+
+void inline jump_to(int offset) {
+  regs.pc += (offset);
 }
 
 extern "C" ExecutionState decode_and_execute() {
@@ -181,21 +186,21 @@ extern "C" ExecutionState decode_and_execute() {
       case 0xB5: { // mov ch, imm8
         regs.cx = (regs.cx&AL) | (imm_value<<8);
         regs.pc += 2;
-        return {}; 
+        RETURN;
       }
 
 
       case 0xB6: { //mov dh, imm8
         regs.dx = (regs.dx&AL) | (imm_value<<8);
         regs.pc += 2;
-        return {};
+        RETURN;
       }
 
 
       case 0xB7: { // mov bh, imm8
         regs.bx = (regs.bx&AL) | (imm_value<<8);
         regs.pc += 2;
-        return {};
+        RETURN;
       }
 
 
@@ -207,45 +212,74 @@ extern "C" ExecutionState decode_and_execute() {
           case 0x10: { // BIOS VIDEO SERVICE
             //cout << "[DBG] BIOS VIDEO SERVICE\n";
             switch( ((regs.ax)&AH)>>8 ) { // AH
-                case 0x0e: { // DISPLAY CARACTER
-                  cout << (char)((regs.ax)&AL) << flush;
-                  regs.pc+= 2;
+              case 0x0e: { // DISPLAY CARACTER
+                cout << (char)((regs.ax)&AL) << flush;
+                regs.pc+= 2;
 
-                  cursor_update_byone();
-                  return {};
-                }
-                case 0x02: { // CHANGE CURSOR
-                  unsigned short line = ((regs.dx)&AH)>>8;
-                  unsigned short column = (regs.dx)&AL;
-                  unsigned short video_page = ((regs.bx)&AH)>>8;
-                  move_cursor(line, column);
-                  regs.pc += 2;
-                  return {};
-                };
-            };
-            break;
+                cursor_update_byone();
+                RETURN;
+              }
+              case 0x02: { // CHANGE CURSOR
+                unsigned short line = ((regs.dx)&AH)>>8;
+                unsigned short column = (regs.dx)&AL;
+                unsigned short video_page = ((regs.bx)&AH)>>8;
+                move_cursor(line, column);
+                regs.pc += 2;
+                RETURN;
+              };
           };
+          break;
+        };
    
-          case 0x03: {
-            exit(1);
-          };
+        case 0x03: {
+          exit(1);
+        };
                 
-        }
-        break;
-      };
+      }
+      break;
+      }
   
       /* Conditional Jumps */
 
 
       case 0x77: { // ja/jnbe (>=)
         if(CF == 0 && ZF == 0) {
-          regs.pc += (offset_1byte)+2;
+          jump_to(offset_1byte+2);
           return {};
         }
         regs.pc += 2;
-        return {};
+        RETURN;
+      }
+      
+      case 0x74: { // je (==)
+        if(ZF == 1) {
+          jump_to(offset_1byte+2);
+          RETURN;
+        }
+        regs.pc+=2;
+        RETURN;
       }
 
+      case 0x75: { // jne (!=)
+        if(ZF == 0) {
+          jump_to(offset_1byte+2);
+          RETURN;
+        }
+        regs.pc+=2;
+        RETURN;
+      }
+
+      case 0x72: { // jb (!(>=))
+        if(CF == 1) {
+          jump_to(offset_1byte+2);
+          RETURN;
+        }
+        regs.pc+=2;
+        RETURN;
+      }
+
+      // TODO jnb (if cf == 0)
+      // TODO jl (if sf != of)
 
       default: {
         break;
