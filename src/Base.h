@@ -3,6 +3,35 @@
 
 typedef unsigned short word;
 
+struct FlagsRegister {
+  word CF : 1;
+  word rsvd : 1;
+  word PF : 1;
+  word rsvd2 : 1;
+  word AF : 1;
+  word rsvd3 : 1;
+  word ZF : 1;
+  word SF : 1;
+  word TF : 1;
+  word IF : 1;
+  word DF : 1;
+  word OF : 1;
+  word IOPL : 2;
+  word NT : 1;
+  word rsvd4 : 1;
+  word RF : 1;
+  word VM : 1;
+  word AC : 1;
+  word VIF : 1;
+  word VIP : 1;
+  word ID : 1;
+};
+
+union Flags {
+  FlagsRegister flags;
+  word all;
+};
+
 struct Registers {
     /* General-Purposes registers */
     word ax;
@@ -14,7 +43,7 @@ struct Registers {
     word si;
     word di;
     word pc;
-    word flags;
+    Flags flags;
     word cs;
     word ss;
     word ds;
@@ -50,8 +79,13 @@ struct Registers {
       24,25,26,27,28,29,30,31->Reserved
 */
 
-#define CF ( (regs.flags)&1 )
-#define ZF ( (regs.flags)&128 )
+#define CF (regs.flags.flags.CF)
+#define ZF (regs.flags.flags.ZF)
+#define PF (regs.flags.flags.PF)
+#define SF (regs.flags.flags.SF)
+#define IF (regs.flags.flags.IF)
+#define OF (regs.flags.flags.OF)
+#define AF (regs.flags.flags.AF)
 
 enum ExecutionState {
     SUCCESS,

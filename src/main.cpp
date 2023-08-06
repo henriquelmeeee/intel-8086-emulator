@@ -137,8 +137,9 @@ extern "C" ExecutionState decode_and_execute() {
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch( (regs.ir) >> 8 ) {
         case NOP: {
+            cout << "nop\n";
             ++regs.pc;
-            return {};
+            RETURN;
         };
         default: {
             //cout << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
@@ -150,6 +151,9 @@ extern "C" ExecutionState decode_and_execute() {
     byte imm_value = *(virtual_memory_base_address+(regs.cs*16)+regs.pc+1);
     signed char offset_1byte = (signed char) imm_value; // conditional jmps
     switch( (regs.ir) >> 8 ) {
+
+      /* MOvs */
+
       case 0xB0: { // mov al, imm8
         regs.ax = (regs.ax&AH) | imm_value;
         regs.pc += 2;
@@ -270,16 +274,40 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0x72: { // jb (!(>=))
+        cout << "jb ";
         if(CF == 1) {
+          cout << "true\n";
           jump_to(offset_1byte+2);
           RETURN;
         }
+        cout << "false\n";
         regs.pc+=2;
         RETURN;
       }
 
       // TODO jnb (if cf == 0)
       // TODO jl (if sf != of)
+
+      /* sums */
+
+      case 0x04: { // add al, imm8
+        cout << "add al, imm8\n";
+        unsigned char to_sum = offset_1byte;
+        unsigned int value = regs.ax&AL;
+        unsigned int new_value = value + to_sum;
+
+        regs.ax = (regs.ax&AL) | ((new_value)&0xFF);
+
+        CF = (new_value>0xFF);
+        PF = (__builtin_parity(new_value&0xFF));
+        AF = ((value ^ to_sum ^ new_value) & 0x10) != 0;
+        ZF = (new_value&0xFF)==0;
+        SF = ((new_value & 0x80)!=0);
+        OF = ((value ^ -to_sum) & (value ^ new_value) & 0x80 != 0);
+
+        regs.pc+=2;
+        RETURN;
+      }
 
       default: {
         break;
@@ -351,8 +379,9 @@ extern "C" ExecutionState decode_and_execute() {
 
       case 0xEB: { // jmp short in same-segment
         signed char offset = (signed char) (imm_value & 0xFF);
-        regs.pc+=(offset+2);
-        return {};
+        jump_to(offset+2);
+        //regs.pc+=(offset+2);
+        RETURN;
       }
 
       default: {
@@ -445,7 +474,7 @@ extern "C" int main(int argc, char *argv[]) {
         regs.cs = 0;
         regs.ss = 0;
         regs.ds = 0;
-        regs.flags = 0;
+        regs.flags.all = 0;
 
         system("clear");
 
