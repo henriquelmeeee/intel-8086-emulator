@@ -3,6 +3,10 @@
 
 typedef unsigned short word;
 
+#include <stdlib.h>
+#include <string>
+#include <map>
+
 struct FlagsRegister {
   word CF : 1;
   word rsvd : 1;

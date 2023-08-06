@@ -23,6 +23,16 @@
 
 int iterations = 0;
 
+#include <map>
+
+std::map<unsigned char, std::string> opcode_map = {
+  {0xE8, "CALL rel16"},
+  {0x04, "ADD al, imm8"},
+  {0x72, "JB rel8"},
+  {0x90, "NOP"},
+};
+
+
 unsigned long cursor_location = VIDEO_MEMORY_BASE;
 
 /* GDB protocol configuration */
@@ -380,7 +390,6 @@ extern "C" ExecutionState decode_and_execute() {
       case 0xEB: { // jmp short in same-segment
         signed char offset = (signed char) (imm_value & 0xFF);
         jump_to(offset+2);
-        //regs.pc+=(offset+2);
         RETURN;
       }
 
@@ -398,6 +407,41 @@ extern "C" ExecutionState decode_and_execute() {
 }
 
 const char* supported_features_gdb_response = "$#00";
+
+char user_buffer[32];
+
+void inline wait_for_user() {
+  cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir] << "\n\n";
+  while(true) {
+    cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address" << "\n> ";
+  
+    std::cin >> user_buffer;
+    unsigned short address_to_read = atoi(&(user_buffer[2]));
+    cout << "\n";
+    if(strcmp(user_buffer, "ni") == 0) {
+      break;
+    } else if (strcmp(user_buffer, "dr") == 0){
+      cout << "Registers:\n";
+      dump_registers();
+    } else if (strncmp(user_buffer, "rd", 2) == 0) {
+      cout << "Address to read: " << address_to_read;
+      short value = ((short) *((char*)virtual_memory_base_address+address_to_read));
+      cout << "\nValue (signed): " << value;
+      cout << "\nValue (unsigned): " << (unsigned short)value;
+      cout << "\nInstruction (if valid): " << opcode_map[value];
+      cout << "\n";
+    } else if (strncmp(user_buffer, "wr", 2) == 0){
+      cout << "Address to write: " << address_to_read;
+      cout << "\nValue to write: > ";
+      short value;
+      std::cin >> value;
+      *((char*)virtual_memory_base_address+address_to_read) = value;
+      cout << "Success!\n";
+    } else {
+      exit(1);
+    }
+  }
+}
 
 extern "C" void start_execution_by_clock() {
     while(true) {
@@ -423,6 +467,7 @@ extern "C" void start_execution_by_clock() {
         regs.ir = *((unsigned short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
 #ifdef STEP_BY_STEP
+        wait_for_user();
 #endif
         ++iterations;
         decode_and_execute();
