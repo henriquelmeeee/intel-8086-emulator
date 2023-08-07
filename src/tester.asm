@@ -7,8 +7,8 @@ main:
   call teste
 
 teste:
-  add al, 1
-  jb finish
+  mov bx, 1
+  add byte [bx + si], al
   nop
   jmp teste
 

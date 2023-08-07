@@ -40,8 +40,16 @@ union Flags {
   word all;
 };
 
+
+union _ax {
+  word ah:8;
+  word al:8;
+  word ax;
+};
+
 struct Registers {
     /* General-Purposes registers */
+    //_ax ax;
     word ax;
     word cx;
     word dx;

@@ -102,8 +102,8 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 }
 
 void dump_registers () {
-  cout << "Instruction Register: " << itoh(regs.ir) << "\n";
-  cout << "Instruction Pointer: " << itoh(regs.pc) << "\n";
+  cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\n";
+  cout << "AX: 0x" << itoh(regs.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\n";
   return;
 }
 
@@ -135,6 +135,11 @@ void inline jump_to(int offset) {
   regs.pc += (offset);
 }
 
+unsigned short inline get_register_value_by_index(unsigned char index) {
+  // TODO get register by index in "value_to_add", a menos que seja algo como add [imm16], value
+  return 1;
+}
+
 extern "C" ExecutionState decode_and_execute() {
     /*
         * We will try to detect the operational code of the actual instruction 
@@ -144,12 +149,18 @@ extern "C" ExecutionState decode_and_execute() {
     */
     
     regs.ir = htons(regs.ir);
+    struct InstructionArgs args = {
+      *(virtual_memory_base_address+(regs.cs*16)+regs.pc),
+      (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
+      (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
+    };
     // 1-byte opcodes
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch( (regs.ir) >> 8 ) {
         case NOP: {
             cout << "nop\n";
-            ++regs.pc;
+            //++regs.pc;
+            InstructionHandler::_NOP(args);
             RETURN;
         };
         default: {
@@ -302,12 +313,16 @@ extern "C" ExecutionState decode_and_execute() {
       /* sums */
 
       case 0x04: { // add al, imm8
-        cout << "add al, imm8\n";
         unsigned char to_sum = offset_1byte;
+        cout << "add al, " << to_sum << "\n";
         unsigned int value = regs.ax&AL;
+        cout << "value of AL: " << value << "\n";
         unsigned int new_value = value + to_sum;
-
+        cout << "new value of AL: " << new_value << "\n";
+        
+        regs.ax = (regs.ax&AL)&0;
         regs.ax = (regs.ax&AL) | ((new_value)&0xFF);
+        cout << "commited: " << (regs.ax&AL) << "\n";
 
         CF = (new_value>0xFF);
         PF = (__builtin_parity(new_value&0xFF));
@@ -392,6 +407,106 @@ extern "C" ExecutionState decode_and_execute() {
         signed char offset = (signed char) (imm_value & 0xFF);
         jump_to(offset+2);
         RETURN;
+      }
+
+      case 0x08: { // add ax, imm16
+        unsigned short to_sum = imm_value;
+        cout << "add ax, " << to_sum << "\n";
+        unsigned int value = regs.ax;
+        cout << "value of AX: " << value << "\n";
+        unsigned int new_value = value + to_sum;
+        cout << "new value of AX: " << new_value << "\n";
+        
+        regs.ax = new_value;
+        cout << "commited: " << (regs.ax) << "\n";
+
+        CF = (new_value>0xFFFF);
+        PF = (__builtin_parity(new_value&0xFF));
+        AF = ((value ^ to_sum ^ new_value) & 0x10) != 0;
+        ZF = (new_value&0xFFFF)==0;
+        SF = ((new_value & 0x8000)!=0);
+        OF = ((value ^ -to_sum) & (value ^ new_value) & 0x8000 != 0);
+
+        regs.pc+=2;
+        RETURN;
+      }
+      
+      /*
+       * Now we need to decode opcode 0x00
+       * We get an 1-byte memory address from a register
+       * and 1-byte operand
+       * so for example:
+       * add byte [bx], al
+       * is the same as:
+       * 0x0007
+       * where "0x07" is ModR/M 00000111 (bx, al, indirect address)
+      */
+
+
+      case 0x00: { // add addr_from_reg, reg
+        unsigned char Mod = (offset_1byte&0xC0)>>6;
+        unsigned char Reg_or_Opcode = (offset_1byte&0x38)>>3;
+        unsigned char R_M = (offset_1byte&0x07);
+        cout << "add [reg/addr], reg\n";
+        if(Mod == 0) { // uses register as pointer (ex: add [bx], ax)
+          cout << "mod 0\n";
+          unsigned short pointer = 0;
+          switch(R_M) {
+            case 0: { // [BX + SI]
+              pointer = (regs.ds*16) + regs.bx + regs.si;
+              cout << "bx+si\n";
+              break;
+            }
+            case 1: { // [BX + DI]
+              pointer = (regs.ds*16) + regs.bx + regs.di;
+              cout << "bx+di\n";
+              break;
+            }
+            case 2: { // [BP + SI]
+              pointer = (regs.ds*16) + regs.bp + regs.si;
+              cout << "bp+si\n";
+              break;
+            }
+            case 3: { // [BP + DI]
+              pointer = (regs.ds*16) + regs.bp + regs.di;
+              cout << "bp+di\n";
+              break;
+            }
+            case 4: { // [SI] TODO
+              break;
+            }
+            case 5: { // [DI] TODO
+              break;
+            }
+            case 6: { // 16bits imm
+              pointer = (unsigned short)*((char*)virtual_memory_base_address+regs.pc+2);
+              // TODO special case here, the code needs to follow another routine.
+              break;
+            }
+            case 7: { // [BX] TODO
+              break;
+            }
+            default: {break;}
+          }
+          cout << "calculating\n";
+          unsigned char value_at_pointer = *reinterpret_cast<unsigned char*>(&virtual_memory_base_address[pointer]);
+          unsigned char value_to_add__reg = *reinterpret_cast<unsigned short*>(&virtual_memory_base_address[regs.pc+2]);
+          value_to_add__reg = get_register_value_by_index(value_to_add__reg);
+          unsigned char result = value_at_pointer + value_to_add__reg;
+
+          cout << "result: " << (unsigned short)result << "\nat address: " << pointer << "\n";
+
+          *reinterpret_cast<unsigned char*>(&virtual_memory_base_address[pointer]) = result;
+          regs.pc+=2;
+          RETURN;
+          // TODO flags
+
+        } else {
+          RETURN;
+        }
+      }
+
+      case 0x8B: {
       }
 
       default: {
