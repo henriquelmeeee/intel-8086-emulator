@@ -1,7 +1,7 @@
 rm source
 rm debug
 
-g++ -g -o main main.cpp Instructions.cpp
+g++ main.cpp Instructions.cpp -lSDL2 -lSDL2_ttf -g -o main
 nasm -f bin -o source tester.asm
 sleep 1
 sh run.sh

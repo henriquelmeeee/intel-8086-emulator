@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include <SDL2/SDL.h>
 #include <thread>
 #include <chrono>
 
@@ -33,8 +34,13 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
 };
 
+/* Video-related */
 
 unsigned long cursor_location = VIDEO_MEMORY_BASE;
+//const int WIDTH = 80;   // DEPRECATED; use VIDEO_WIDTH
+//const int HEIGHT = 25;  // DEPRECATED; use VIDEO_HEIGHT
+const int FONT_WIDTH = 8;
+const int FONT_HEIGHT = 16;
 
 /* GDB protocol configuration */
 
@@ -113,7 +119,7 @@ void infinite_loop() {
     while(true);
 }
 
-void cursor_update_byone() {
+void inline cursor_update_byone() {
   // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
   // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
   // btw o código abaixo (calcular X e Y) é inútil por enquanto
@@ -126,9 +132,14 @@ void cursor_update_byone() {
     ++x;
   }
 
-  ++cursor_location;
+  cursor_location+=2;
 
   return;
+}
+
+void inline write_char_on_memory(char ch) {
+  *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location) = ch;
+  *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location+1) = 0; // white
 }
 
 void inline jump_to(int offset) {
@@ -241,7 +252,8 @@ extern "C" ExecutionState decode_and_execute() {
               case 0x0e: { // DISPLAY CARACTER
                 cout << (char)((regs.ax)&AL) << flush;
                 regs.pc+= 2;
-
+                
+                write_char_on_memory((char)(regs.ax&AL));
                 cursor_update_byone();
                 RETURN;
               }
@@ -559,6 +571,39 @@ void inline wait_for_user() {
   }
 }
 
+namespace Video {
+#define VIDEO_REFRESH_RATE 1000 / 60
+
+  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory) {
+    //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
+    for(int y = 0; y < VIDEO_HEIGHT / FONT_HEIGHT; y++) {
+      for(int x = 0; x < VIDEO_WIDTH / FONT_WIDTH; x++) {
+        char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
+        cout << ch;
+        // TODO render char in GUI
+      }
+    }
+  }
+
+  void refresh(SDL_Renderer* renderer, const char* videoMemory) {
+    while (true) {
+      cout << "[Video] refresh\tAtualizando janela...";
+      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
+      SDL_RenderClear(renderer);
+      cout << "\tJanela limpa...";
+
+      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+      SDL_Rect rect = {50,50,200,100};
+      SDL_RenderFillRect(renderer, &rect); // apenas para teste
+      
+      //drawCharsOnRefresh(renderer, videoMemory);
+      SDL_RenderPresent(renderer);
+      cout << "\n";
+      std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
+    }
+  }
+}
+
 extern "C" void start_execution_by_clock() {
     while(true) {
         //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
@@ -637,11 +682,43 @@ extern "C" int main(int argc, char *argv[]) {
         regs.ds = 0;
         regs.flags.all = 0;
 
-        system("clear");
+        SDL_Init(SDL_INIT_VIDEO);
+        SDL_Window* window = SDL_CreateWindow("8086", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, VIDEO_WIDTH*10, VIDEO_HEIGHT*20, 0);
+        SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+        if(window == nullptr){
+          cout << "WINDOW NULL PTR";
+          exit(1);
+        }
+        if(renderer == nullptr){
+          cout << "RENDERER NULL PTR";
+          exit(1);
+        }
+        const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
-        
-        start_execution_by_clock();
-        
+        system("clear");
+        std::thread refreshThread(Video::refresh, renderer, videoMemory);
+        refreshThread.detach();
+
+        auto wrapper = [&]() {start_execution_by_clock();};
+
+        std::thread execution_by_clock(wrapper);
+        execution_by_clock.detach();
+
+        bool running = true;
+        SDL_Event event;
+        while (running) {
+          while(SDL_PollEvent(&event)) {
+            if(event.type == SDL_QUIT) {
+              running = false;
+              break;
+            }
+          }
+        }
+
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 0;
         
         
     }

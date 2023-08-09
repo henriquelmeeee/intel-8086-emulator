@@ -7,10 +7,11 @@ main:
   call teste
 
 teste:
-  mov bx, 1
-  add byte [bx + si], al
-  nop
-  jmp teste
+  ;mov bx, 1
+  ;add byte [bx + si], al
+  ;nop
+  ;jmp teste
+  jmp finish
 
 finish:
   mov ah, 0x0e
