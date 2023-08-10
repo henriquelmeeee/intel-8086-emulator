@@ -703,7 +703,7 @@ namespace Video {
   }
 }
 
-extern "C" void start_execution_by_clock() {
+extern "C" void start_execution_by_clock(Device::Devices *devices) {
     while(true) {
         //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
         /*if(serverSocket != 0) {
@@ -726,6 +726,13 @@ extern "C" void start_execution_by_clock() {
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *((unsigned short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
+        
+        for(auto disk : devices->disks) {
+          if(!(disk->Refresh())) {
+            cout << "Disk error: " << disk->getLastError() << "\n";
+          }
+        }
+        
         if(STEP_BY_STEP)
           wait_for_user();
         ++iterations;
@@ -810,12 +817,18 @@ extern "C" int main(int argc, char *argv[]) {
       const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
       std::thread refreshThread(Video::refresh, videoMemory);
+
       refreshThread.detach();
 
-      auto wrapper = [&]() {start_execution_by_clock();};
+      Device::Keyboard *kb = new Device::Keyboard();
+      Device::Disk *master = new Device::Disk();
+
+      Device::Devices *devices = new Device::Devices(master, kb);
+      auto wrapper = [&]() {start_execution_by_clock(devices);};
 
       std::thread execution_by_clock(wrapper);
       execution_by_clock.detach();
+
       while(Video::running);
 
       return 0;

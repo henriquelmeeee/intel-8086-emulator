@@ -7,6 +7,7 @@ typedef unsigned short word;
 #include <iostream>
 #include <string>
 #include <map>
+#include <vector>
 
 extern std::map<unsigned char, struct InstructionInfo> opcode_map;
 
@@ -121,27 +122,85 @@ namespace Instruction {
   #define NOP 0x90
 }
 
-class Disk {
-  public:
-    unsigned char* addr;
-    unsigned long long size;
+namespace Device {
+
+  extern unsigned short ports[255];
+
+  class Disk {
+    public:
+      unsigned char* addr;
+      unsigned long long size;
                                                         // DEFAULTS;
-    unsigned int data_port;                             // 0x1F0
-    unsigned int error_and_resources_port;              // 0x1F1, ...
-    unsigned int count_sector_port;
-    unsigned int sector_number_port;
-    unsigned int low_cyl_port;
-    unsigned int drive_head_port;
-    unsigned int status_command_port;                   // 0x1F7
+      /*unsigned int data_port;                             // 0x1F0
+      unsigned int error_and_resources_port;              // 0x1F1, ...
+      unsigned int count_sector_port;
+      unsigned int sector_number_port;
+      unsigned int low_cyl_port;
+      unsigned int drive_head_port;
+      unsigned int status_command_port;                   // 0x1F7*/
+                                                          // WE WILL USE ports[x]
 
-    unsigned char data_buffer[2];
-    // TODO criar o resto dos buffer
+      std::vector<unsigned short> ports_in_use;
+      unsigned char data_buffer[2];
 
-    Disk() {
-      std::cout << "Creating new Disk\n";
+      std::string lastError;
+      // TODO criar o resto dos buffer
+
+      Disk() {
+        std::cout << "Creating new Disk\n";
+        ports_in_use = {
+          0x1F0,
+          0x1F1,
+          0x1F2,
+          0x1F3,
+          0x1F4,
+          0x1F5,
+          0x1F6,
+          0x1F7
+        };
+        lastError = "Unknown error";
+      }
+
+      bool Refresh() {
+        return true;
+      }
+
+      std::string getLastError() {
+        return this->lastError;
+      }
+  };
+
+  class Keyboard {
+    public:
+      unsigned char* addr;
+      unsigned long long size;
 
 
-    }
-};
+      unsigned short data_port; // 0x60
+      unsigned short command_and_status_port; // 0x64
+  
+      std::vector<unsigned short> ports_in_use;
+      Keyboard() {
+        std::cout << "Creating new PS/2 Keyboard\n";
+        ports_in_use = {0x60, 0x64};
+      }
 
+      bool Refresh() {
+        return true;
+      }
+  };
+
+  class Devices {
+    public:
+      std::vector<Disk*> disks;
+      Keyboard* keyboard_PS2;
+
+      Devices(Disk* master, Keyboard* kb) {
+        std::cout << "Initializing devices\n";
+        this->keyboard_PS2 = kb;
+        this->disks.push_back(master);
+      }
+  };
+
+}
 #endif

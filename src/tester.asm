@@ -18,8 +18,13 @@ finish:
   mov al, 'a'
   int 0x10
   mov ax, 220
-  mov sp, 10
-  sub al, 1
+  mov sp, 0
+  call teste_overflow
+
+teste_overflow:
+  mov al, 'b'
+  int 0x10
+  jmp teste_overflow
 
 times 512 - ($ - $$)  db 0
 dw 0xAA55
