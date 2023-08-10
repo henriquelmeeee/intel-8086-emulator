@@ -24,6 +24,7 @@ class Processor {
 #include <sys/mman.h>
 
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 #include <thread>
 #include <chrono>
 
@@ -102,7 +103,7 @@ void move_cursor(short x, short y) {
   /* Simulate the cursor of text-mode */
 
 
-  cursor_location = (y*VIDEO_WIDTH) + x + VIDEO_MEMORY_BASE; // FIXME talvez precise incrementar em mais um por conta de cada caractere ocupar 2 bytes?
+  cursor_location = (y*VIDEO_COLUMNS) + x + VIDEO_MEMORY_BASE; // FIXME talvez precise incrementar em mais um por conta de cada caractere ocupar 2 bytes?
 
 }
 
@@ -618,36 +619,87 @@ void inline wait_for_user() {
   }
 }
 
+const int _CHAR_WIDTH = VIDEO_WIDTH / VIDEO_COLUMNS;
+const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
+
 namespace Video {
 #define VIDEO_REFRESH_RATE 1000 / 60
 
-  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory) {
+  void drawCharsOnRefresh(SDL_Renderer* renderer, SDL_Texture* fontTexture, const char* videoMemory) {
     //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
-    for(int y = 0; y < VIDEO_HEIGHT / FONT_HEIGHT; y++) {
-      for(int x = 0; x < VIDEO_WIDTH / FONT_WIDTH; x++) {
+    for(int y = 0; y < VIDEO_ROWS / FONT_HEIGHT; y++) {
+      for(int x = 0; x < VIDEO_COLUMNS / FONT_WIDTH; x++) {
         char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
         cout << ch;
         // TODO render char in GUI
       }
     }
   }
+  
+  bool running=true;
 
-  void refresh(SDL_Renderer* renderer, const char* videoMemory) {
-    while (true) {
+  void refresh(const char* videoMemory) {
+    if(SDL_Init(SDL_INIT_VIDEO) != 0) {
+      std::cerr << "SDL_Init err: " << SDL_GetError() << std::endl;
+      running = false;
+      return;
+    }
+    
+    SDL_Window* window = SDL_CreateWindow("SDL2 Simple Example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, VIDEO_WIDTH, VIDEO_HEIGHT, SDL_WINDOW_SHOWN);
+    if(window == nullptr) {
+      std::cerr << "SDL_CreateWindow err: " << SDL_GetError() << std::endl;
+      SDL_Quit();
+      running=false;
+      return;
+    }
+
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    if(renderer == nullptr) {
+      SDL_DestroyWindow(window);
+      std::cerr << "SDL_CreateRenderer err: " << SDL_GetError() << std::endl;
+      running=false;
+      return;
+    }
+
+    SDL_Event event;
+
+    SDL_Surface* fontSurface = IMG_Load("font.png");
+    if (!fontSurface) {
+        std::cerr << "IMG_Load Error: " << IMG_GetError() << std::endl;
+        return;
+    }
+    SDL_Texture* fontTexture = SDL_CreateTextureFromSurface(renderer, fontSurface);
+    SDL_FreeSurface(fontSurface);
+
+    while (running) {
+      while(SDL_PollEvent(&event)) {
+        if(event.type == SDL_QUIT) {
+          running = false;
+          break;
+        }
+      }
       cout << "[Video] refresh\tAtualizando janela...";
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
       SDL_RenderClear(renderer);
       cout << "\tJanela limpa...";
 
-      SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
+      SDL_Surface* fontSurface = IMG_Load("font.png");
+      if(!fontSurface) {
+        cout << "!fontSurface\n"; // TODO handle
+      }
+      SDL_Texture* fontTexture = SDL_CreateTextureFromSurface(renderer, fontSurface);
+      /*SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
       SDL_Rect rect = {50,50,200,100};
-      SDL_RenderFillRect(renderer, &rect); // apenas para teste
+      SDL_RenderFillRect(renderer, &rect); // apenas para teste*/
       
-      //drawCharsOnRefresh(renderer, videoMemory);
+      drawCharsOnRefresh(renderer, fontTexture, videoMemory);
       SDL_RenderPresent(renderer);
       cout << "\n";
       std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
     }
+    SDL_DestroyRenderer(renderer);
+    SDL_DestroyWindow(window);
+    SDL_Quit();
   }
 }
 
@@ -755,41 +807,17 @@ extern "C" int main(int argc, char *argv[]) {
       regs.ds = 0;
       regs.flags.all = 0;
 
-        /*SDL_Init(SDL_INIT_VIDEO);
-        SDL_Window* window = SDL_CreateWindow("8086", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, VIDEO_WIDTH*10, VIDEO_HEIGHT*20, 0);
-        SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-        if(window == nullptr){
-          cout << "WINDOW NULL PTR";
-          exit(1);
-        }
-        if(renderer == nullptr){
-          cout << "RENDERER NULL PTR";
-          exit(1);
-        }*/
       const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
-        //std::thread refreshThread(Video::refresh, renderer, videoMemory);
-        //refreshThread.detach();
+      std::thread refreshThread(Video::refresh, videoMemory);
+      refreshThread.detach();
 
-        //auto wrapper = [&]() {start_execution_by_clock();};
+      auto wrapper = [&]() {start_execution_by_clock();};
 
-        //std::thread execution_by_clock(wrapper);
-        //execution_by_clock.detach();
-      start_execution_by_clock();
-        /*bool running = true;
-        SDL_Event event;
-        while (running) {
-          while(SDL_PollEvent(&event)) {
-            if(event.type == SDL_QUIT) {
-              running = false;
-              break;
-            }
-          }
-        }
+      std::thread execution_by_clock(wrapper);
+      execution_by_clock.detach();
+      while(Video::running);
 
-        SDL_DestroyRenderer(renderer);
-        SDL_DestroyWindow(window);
-        SDL_Quit();*/
       return 0;
     return 0;
 }
