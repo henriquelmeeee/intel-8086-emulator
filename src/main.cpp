@@ -47,7 +47,11 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
   {0x72, {2, InstructionHandler::NotImplemented, "JB rel8"}},
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
-  {0x2c, {2, InstructionHandler::NotImplemented, "sub al, imm8"}}, // not sure!
+  {0x2C, {2, InstructionHandler::NotImplemented, "SUB al, imm8"}}, // not sure!
+  
+  /* IN and OUT */
+  {0xE4, {2, InstructionHandler::NotImplemented, "IN al, imm8"}},
+  {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
 };
 
 /* Video-related */
@@ -123,7 +127,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 
 void dump_registers () {
   cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\n";
-  cout << "AX: 0x" << itoh(regs.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\n";
+  cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\n";
   return;
 }
 
@@ -208,7 +212,8 @@ extern "C" ExecutionState decode_and_execute() {
       /* MOvs */
 
       case 0xB0: { // mov al, imm8
-        regs.ax = (regs.ax&AH) | imm_value;
+        //regs.ax = (regs.ax&AH) | imm_value;
+        regs.ax.al = imm_value;
         regs.pc += 2;
         return {};
       }
@@ -235,7 +240,8 @@ extern "C" ExecutionState decode_and_execute() {
       /* AH (high) movs */
 
       case 0xB4: { //mov ah, imm 8
-        regs.ax = (regs.ax&AL) | (imm_value<<8);
+        //regs.ax = (regs.ax&AL) | (imm_value<<8);
+        regs.ax.ah = args.imm8_value;
         regs.pc += 2;
         return {};
       }
@@ -268,12 +274,15 @@ extern "C" ExecutionState decode_and_execute() {
         switch( (regs.ir)&AL ) {
           case 0x10: { // BIOS VIDEO SERVICE
             //cout << "[DBG] BIOS VIDEO SERVICE\n";
-            switch( ((regs.ax)&AH)>>8 ) { // AH
+            //switch( ((regs.ax)&AH)>>8 ) {
+            switch(regs.ax.ah) {
               case 0x0e: { // DISPLAY CARACTER
-                cout << (char)((regs.ax)&AL) << flush;
+                //cout << (char)((regs.ax)&AL) << flush;
+                cout << (char)regs.ax.al << flush;
                 regs.pc+= 2;
                 
-                write_char_on_memory((char)(regs.ax&AL));
+                //write_char_on_memory((char)(regs.ax&AL));
+                write_char_on_memory((char)regs.ax.al);
                 cursor_update_byone();
                 RETURN;
               }
@@ -347,14 +356,16 @@ extern "C" ExecutionState decode_and_execute() {
       case 0x04: { // add al, imm8
         unsigned char to_sum = offset_1byte;
         cout << "add al, " << to_sum << "\n";
-        unsigned int value = regs.ax&AL;
+        //unsigned int value = regs.ax&AL;
+        unsigned int value = regs.ax.al;
         cout << "value of AL: " << value << "\n";
         unsigned int new_value = value + to_sum;
         cout << "new value of AL: " << new_value << "\n";
         
-        regs.ax = (regs.ax&AL)&0;
-        regs.ax = (regs.ax&AL) | ((new_value)&0xFF);
-        cout << "commited: " << (regs.ax&AL) << "\n";
+        //regs.ax = (regs.ax&AL)&0;
+        regs.ax.al = 0;
+        regs.ax.al = ((new_value)&0xFF);
+        cout << "commited: " << (regs.ax.al) << "\n";
 
         CF = (new_value>0xFF);
         PF = (__builtin_parity(new_value&0xFF));
@@ -378,7 +389,7 @@ extern "C" ExecutionState decode_and_execute() {
     switch( (regs.ir)>>8 ) {
         
       case 0xB8: { // mov ax, imm16 
-        regs.ax = imm_value;
+        regs.ax.ax = imm_value;
         regs.pc += 3;
         return {};
       };
@@ -444,13 +455,13 @@ extern "C" ExecutionState decode_and_execute() {
       case 0x08: { // add ax, imm16
         unsigned short to_sum = imm_value;
         cout << "add ax, " << to_sum << "\n";
-        unsigned int value = regs.ax;
+        unsigned int value = regs.ax.ax;
         cout << "value of AX: " << value << "\n";
         unsigned int new_value = value + to_sum;
         cout << "new value of AX: " << new_value << "\n";
         
-        regs.ax = new_value;
-        cout << "commited: " << (regs.ax) << "\n";
+        regs.ax.ax = new_value;
+        cout << "commited: " << (regs.ax.ax) << "\n";
 
         CF = (new_value>0xFFFF);
         PF = (__builtin_parity(new_value&0xFF));

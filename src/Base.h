@@ -41,17 +41,16 @@ union Flags {
   word all;
 };
 
-
-union _ax {
-  word ah:8;
-  word al:8;
-  word ax;
+union __ax {
+  struct {unsigned char al; unsigned char ah;};
+  unsigned short ax;
 };
 
 struct Registers {
     /* General-Purposes registers */
     //_ax ax;
-    word ax;
+    word ax_DEPRECATED;
+    __ax ax;
     word cx;
     word dx;
     word bx;

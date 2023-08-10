@@ -6,6 +6,9 @@
 #include <string>
 #include <stdlib.h>
 
+#define _DEFAULT_ARGS struct InstructionArgs
+#define DEFAULT_ARGS _DEFAULT_ARGS args
+
 struct InstructionArgs { 
   unsigned char opcode;
   unsigned char imm8_value;
@@ -14,23 +17,24 @@ struct InstructionArgs {
 
 struct InstructionInfo {
   unsigned char size;
-  void (*handler)(struct InstructionArgs);
+  void (*handler)(_DEFAULT_ARGS);
   std::string name;
 
   InstructionInfo() : size(0), handler(nullptr), name("") {}
-  InstructionInfo(int i, void (*h)(struct InstructionArgs), std::string d)
+  InstructionInfo(int i, void (*h)(_DEFAULT_ARGS), std::string d)
     : size(i), handler(h), name(d) {}
 };
 
 
 namespace InstructionHandler {
-  void _NOP(struct InstructionArgs args);
-  void NotImplemented(struct InstructionArgs args);
+  void _NOP(DEFAULT_ARGS);
+  void NotImplemented(DEFAULT_ARGS);
+  void _IN_al_dx(DEFAULT_ARGS);
   namespace MOV {
-    void _AL_imm8(struct InstructionArgs args);
+    void _AL_imm8(DEFAULT_ARGS);
   }
   namespace CALL {
-    void _rel16(struct InstructionArgs args);
+    void _rel16(DEFAULT_ARGS);
   }
 }
 

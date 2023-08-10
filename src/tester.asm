@@ -17,6 +17,7 @@ finish:
   mov ah, 0x0e
   mov al, 'a'
   int 0x10
+  mov ax, 220
   sub al, 1
 
 times 512 - ($ - $$)  db 0
