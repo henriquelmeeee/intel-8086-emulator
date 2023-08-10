@@ -746,6 +746,7 @@ extern "C" int main(int argc, char *argv[]) {
         * argv[1] = arquivo de disco *.img
         *
     */
+
       namespace po = boost::program_options;
 
       po::options_description desc("Allowed options");
@@ -830,6 +831,8 @@ extern "C" int main(int argc, char *argv[]) {
       execution_by_clock.detach();
 
       while(Video::running);
+
+      cout << "Programa finalizado\n";
 
       return 0;
     return 0;

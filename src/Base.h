@@ -124,7 +124,7 @@ namespace Instruction {
 
 namespace Device {
 
-  extern unsigned short ports[255];
+  extern std::map<unsigned short, unsigned short> ports;
 
   class Disk {
     public:
@@ -160,14 +160,59 @@ namespace Device {
         };
         lastError = "Unknown error";
       }
-
+      int last_sector;
+      int last_byte;
       bool Refresh() {
+        switch(ports[0x1F7]) {
+          case 0x20:
+          {
+            // READ SECTOR
+            unsigned int lba = (ports[0x1F5] << 16) | (ports[0x1F4] << 8) | ports[0x1F3];
+            unsigned short num_sectors = ports[0x1F2];
+            unsigned short* addr_to_read = (unsigned short*)(addr + lba*512);
+            ports[0x1F0] = (addr_to_read[last_byte*last_sector]);
+            last_byte+=2;
+            if(last_byte==512) {
+              last_sector++;
+              last_byte=0;
+            }
+            // TODO checar se chegamos no ultimo byte do ultimo setor
+          };
+          default:
+          {
+            break;
+          };
+        };
         return true;
       }
 
       std::string getLastError() {
         return this->lastError;
       }
+
+      bool inline writeToData(unsigned short data) {
+        ports[0x1F0] = data;
+        return true;
+      }
+
+      bool inline setSectorCount(unsigned short sector) {
+        ports[0x1F2] = sector;
+        return true;
+      }
+
+      bool inline setHead(unsigned short head) {
+        return false;
+      }
+
+      unsigned short inline readStatusPort() {
+        return ports[0x1F7];
+      }
+
+      bool inline setCommandPort(unsigned short command) {
+        ports[0x1F7] = command;
+        return true;
+      }
+
   };
 
   class Keyboard {
