@@ -126,8 +126,10 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 }
 
 void dump_registers () {
-  cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\n";
-  cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\n";
+  cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\t\tCS: 0x" << itoh(regs.cs) << "\n";
+  cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\t\tDX: 0x" << itoh(regs.dx) << "\n";
+  cout << "BX: 0x" << itoh(regs.bx) << "\n";
+  cout << "SP: 0x" << itoh(regs.sp) << "\t\tBP: 0x" << itoh(regs.bp) << "\n";
   return;
 }
 
@@ -554,11 +556,11 @@ extern "C" ExecutionState decode_and_execute() {
 
       default: {
         // flag Interruption Flag não afeta exceções da CPU
-        cout << "CPU Fault!\n";
+        cout << "\033[31mCPU Fault at 0x" << itoh(regs.pc) << "\033[0m\n";
         dump_registers();
-        cout << "Iterations: " << iterations << "\nCalling handler...\n";
+        cout << "Instructions Counter: " << iterations << "\nCalling handler...\n";
         if(Processor.AreInException) {
-          cout << "\033[31mDouble fault detected at 0x" << itoh(regs.pc) << ", shutting down...\033[0m\n";
+          cout << "\033[31mDouble fault detected, shutting down...\033[0m\n";
           exit(1);
         }
         push(regs.cs);
@@ -570,7 +572,7 @@ extern "C" ExecutionState decode_and_execute() {
         unsigned short routine_addr = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4+2);
         regs.pc = routine_addr;
         Processor.AreInException = true;
-        cout << "PC is now " << itoh(regs.pc) << "\n";
+        cout << "PC is now 0x" << itoh(regs.pc) << "\n";
         return {};
       };
     }
