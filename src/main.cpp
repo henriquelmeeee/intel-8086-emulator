@@ -8,6 +8,18 @@
 #include <iostream>
 #include <fstream>
 
+bool STEP_BY_STEP=false;
+
+// TODO FIXME colocar isso num .h pra todos arquivos poderem usar
+// inclusive o Instructions.h
+// TODO FIXME colocar handler pra instrucao "iret"
+
+class Processor {
+  public:
+    bool AreInException;
+} Processor;
+
+
 #include <stdlib.h>
 #include <sys/mman.h>
 
@@ -22,35 +34,37 @@
 
 #include "Utils.h"
 
-int iterations = 0;
+unsigned long iterations = 0;
 
 #include <map>
 #include "Instructions.h"
+#include "Exceptions.h"
+
+#include <boost/program_options.hpp>
 
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
   {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
   {0x72, {2, InstructionHandler::NotImplemented, "JB rel8"}},
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
+  {0x2c, {2, InstructionHandler::NotImplemented, "sub al, imm8"}}, // not sure!
 };
 
 /* Video-related */
 
 unsigned long cursor_location = VIDEO_MEMORY_BASE;
-//const int WIDTH = 80;   // DEPRECATED; use VIDEO_WIDTH
-//const int HEIGHT = 25;  // DEPRECATED; use VIDEO_HEIGHT
 const int FONT_WIDTH = 8;
 const int FONT_HEIGHT = 16;
 
 /* GDB protocol configuration */
 
-int serverSocket, newSocket;
+/*int serverSocket, newSocket;
 char data_buffer[1024];
 struct sockaddr_in serverAddr;
 struct sockaddr_storage serverStorage;
 socklen_t addr_size;
 
-/*bool StartGDBCommunication() {
+bool StartGDBCommunication() {
   serverSocket = socket(PF_INET, SOCK_STREAM, 0);
 
   serverAddr.sin_family = AF_INET;
@@ -84,7 +98,7 @@ void move_cursor(short x, short y) {
   /* Simulate the cursor of text-mode */
 
 
-  cursor_location = (y*VIDEO_WIDTH) + x + VIDEO_MEMORY_BASE;
+  cursor_location = (y*VIDEO_WIDTH) + x + VIDEO_MEMORY_BASE; // FIXME talvez precise incrementar em mais um por conta de cada caractere ocupar 2 bytes?
 
 }
 
@@ -149,6 +163,12 @@ void inline jump_to(int offset) {
 unsigned short inline get_register_value_by_index(unsigned char index) {
   // TODO get register by index in "value_to_add", a menos que seja algo como add [imm16], value
   return 1;
+}
+
+void push(short value) {
+  // TODO overflow check
+  regs.sp -= 2;
+  *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
 }
 
 extern "C" ExecutionState decode_and_execute() {
@@ -522,10 +542,24 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       default: {
+        // flag Interruption Flag não afeta exceções da CPU
         cout << "CPU Fault!\n";
         dump_registers();
-        cout << "Iterations: " << iterations;
-        exit(1);
+        cout << "Iterations: " << iterations << "\nCalling handler...\n";
+        if(Processor.AreInException) {
+          cout << "\033[31mDouble fault detected at 0x" << itoh(regs.pc) << ", shutting down...\033[0m\n";
+          exit(1);
+        }
+        push(regs.cs);
+        push(regs.pc);
+        push(regs.flags.all);
+
+        unsigned short code_segment = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4);
+        regs.cs = code_segment;
+        unsigned short routine_addr = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4+2);
+        regs.pc = routine_addr;
+        Processor.AreInException = true;
+        cout << "PC is now " << itoh(regs.pc) << "\n";
         return {};
       };
     }
@@ -607,7 +641,7 @@ namespace Video {
 extern "C" void start_execution_by_clock() {
     while(true) {
         //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
-        if(serverSocket != 0) {
+        /*if(serverSocket != 0) {
           while(true) {
             memset(data_buffer, 0, sizeof(data_buffer));
             ssize_t numBytesRcvd = recv(newSocket, data_buffer, sizeof(data_buffer), 0);
@@ -623,13 +657,12 @@ extern "C" void start_execution_by_clock() {
 
             }
           }
-        }
+        }*/
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *((unsigned short*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
-#ifdef STEP_BY_STEP
-        wait_for_user();
-#endif
+        if(STEP_BY_STEP)
+          wait_for_user();
         ++iterations;
         decode_and_execute();
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
@@ -641,16 +674,27 @@ extern "C" int main(int argc, char *argv[]) {
         * argv[1] = arquivo de disco *.img
         *
     */
-    if(argc < 2) {
-        cout << "Faltam argumentos";
-        return -1;
-    } else {
+      namespace po = boost::program_options;
+
+      po::options_description desc("Allowed options");
+      desc.add_options()
+        ("breakpoint,bp", "breakpoint gerado no início da execução");
+
+      po::variables_map vm;
+      po::store(po::parse_command_line(argc, argv, desc), vm);
+      po::notify(vm);
+      
+      if(vm.count("breakpoint")) {
+        STEP_BY_STEP = true;
+        cout << "BREAKPOINT habilitado\n";
+      }
+      system("clear");
       //std::ofstream out("debug");
       //std::streambuf *coutbuf = cout.rdbuf();
       //cout.rdbuf(out.rdbuf());
 
       
-      serverSocket = 0;
+      /*serverSocket = 0*/;
       #ifdef CONNECT_BY_GDB
         if(!StartGDBCommunication())
           return -1;
@@ -662,27 +706,43 @@ extern "C" int main(int argc, char *argv[]) {
       cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
         
       FILE* disk = std::fopen("source", "rb");
+      FILE* second_disk = std::fopen("handle_cpu_fault", "rb"); // just for test
       if(!disk) {
         cout << "Erro ao ler arquivo"; return -1; }
-        byte buffer[512];
-        std::fread(buffer, sizeof(byte), 512, disk);
-        std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
-        for(int byte_ = 0; byte_ < 512; byte_++) {
-          if(buffer[byte_] == 0)
-            cout << ".";
-          else
-            cout << "!";
-          *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
-        }
-        cout << "\n";
-        
-        regs.pc = (unsigned short)0x7c00;
-        regs.cs = 0;
-        regs.ss = 0;
-        regs.ds = 0;
-        regs.flags.all = 0;
+      byte buffer[512];
+      std::fread(buffer, sizeof(byte), 512, disk);
+      std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
+      for(int byte_ = 0; byte_ < 512; byte_++) {
+        if(buffer[byte_] == 0)
+          cout << ".";
+        else
+          cout << "!";
+        *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
+      }
+      
 
-        SDL_Init(SDL_INIT_VIDEO);
+      /* Agora, este é apenas uma representação "forçada" para lidar com CPU FAULT invalid opcode
+       * na prática, temos que carregar os discos fornecidos em ordem
+       * criando uma instância de "Disk" para cada um, e atribuindo endereços E/S
+       * e, ao mesmo tempo, um ponteiro para seus dados na memória
+       * mas, por enquanto, está bom assim
+      */
+
+      std::fread(buffer, sizeof(byte), 4, second_disk);
+      std::fclose(second_disk);
+      for(int byte_ = 0; byte_ < 4; byte_++) {
+        *(virtual_memory_base_address+0x00FF+byte_) = buffer[byte_];
+      }
+      *((unsigned short*)virtual_memory_base_address+0x001A) = 0x00FF; // Handler para CPU FAULT INVALID_OPCODE
+      cout << "\n";
+        
+      regs.pc = (unsigned short)0x7c00;
+      regs.cs = 0;
+      regs.ss = 0;
+      regs.ds = 0;
+      regs.flags.all = 0;
+
+        /*SDL_Init(SDL_INIT_VIDEO);
         SDL_Window* window = SDL_CreateWindow("8086", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, VIDEO_WIDTH*10, VIDEO_HEIGHT*20, 0);
         SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
         if(window == nullptr){
@@ -692,19 +752,18 @@ extern "C" int main(int argc, char *argv[]) {
         if(renderer == nullptr){
           cout << "RENDERER NULL PTR";
           exit(1);
-        }
-        const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
+        }*/
+      const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
-        system("clear");
-        std::thread refreshThread(Video::refresh, renderer, videoMemory);
-        refreshThread.detach();
+        //std::thread refreshThread(Video::refresh, renderer, videoMemory);
+        //refreshThread.detach();
 
-        auto wrapper = [&]() {start_execution_by_clock();};
+        //auto wrapper = [&]() {start_execution_by_clock();};
 
-        std::thread execution_by_clock(wrapper);
-        execution_by_clock.detach();
-
-        bool running = true;
+        //std::thread execution_by_clock(wrapper);
+        //execution_by_clock.detach();
+      start_execution_by_clock();
+        /*bool running = true;
         SDL_Event event;
         while (running) {
           while(SDL_PollEvent(&event)) {
@@ -717,11 +776,7 @@ extern "C" int main(int argc, char *argv[]) {
 
         SDL_DestroyRenderer(renderer);
         SDL_DestroyWindow(window);
-        SDL_Quit();
-        return 0;
-        
-        
-    }
-    
+        SDL_Quit();*/
+      return 0;
     return 0;
 }

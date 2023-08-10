@@ -4,6 +4,7 @@
 typedef unsigned short word;
 
 #include <stdlib.h>
+#include <iostream>
 #include <string>
 #include <map>
 
@@ -64,7 +65,7 @@ struct Registers {
     word ss;
     word ds;
     word es;
-    unsigned short ir;
+    word ir;
 } extern regs;
 
 /* FLAGS
@@ -115,5 +116,28 @@ enum ExecutionState {
 namespace Instruction {
   #define NOP 0x90
 }
+
+class Disk {
+  public:
+    unsigned char* addr;
+    unsigned long long size;
+                                                        // DEFAULTS;
+    unsigned int data_port;                             // 0x1F0
+    unsigned int error_and_resources_port;              // 0x1F1, ...
+    unsigned int count_sector_port;
+    unsigned int sector_number_port;
+    unsigned int low_cyl_port;
+    unsigned int drive_head_port;
+    unsigned int status_command_port;                   // 0x1F7
+
+    unsigned char data_buffer[2];
+    // TODO criar o resto dos buffer
+
+    Disk() {
+      std::cout << "Creating new Disk\n";
+
+
+    }
+};
 
 #endif
