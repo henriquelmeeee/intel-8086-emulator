@@ -324,19 +324,25 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
           unsigned long addr_dest = ((regs.es*16)+regs.bx) + (unsigned long)virtual_memory_base_address;
 
           if(devices->disks[drive_number]) {
-            unsigned short* addr_buffer = (unsigned short*)devices->disks[drive_number]->addr;
-            addr_buffer+=(cyl_number * DISK_HEADS_PER_CYL + head_number)*DISK_SECTORS_PER_CYL + sector_base;
-            cout << "addr_buffer do disco: " << addr_buffer << "\n";
+            unsigned short* addr_disk = (unsigned short*)(devices->disks[drive_number]->addr);
+            addr_disk+=(cyl_number * DISK_HEADS_PER_CYL + head_number)*DISK_SECTORS_PER_CYL + sector_base;
+            
             // TODO 2 bytes por vez, mas podemos fazer 8 bytes por vez pra economizar ciclos
+            
             cout << "SECTORS TO READ: " << sectors_to_read << "\n";
             cout << "VIRTUAL MEMORY ADDRESS TO WRITE: " << (unsigned long)((unsigned short*)addr_dest)-(unsigned long)virtual_memory_base_address;
+            
             for(int sector = 0; sector < sectors_to_read ; sector++) {
               cout << "SECTOR: " << sector << "\n";
               for(int _byte = 0; _byte<256; _byte++) {
+
                 int ACTUAL_SECTOR = sector+sector_base;
-                *((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) = *addr_buffer+ACTUAL_SECTOR*_byte;
-                cout << "write to byte " << _byte*2 << " at " << (unsigned long)((unsigned short*)addr_dest+sector*256+_byte) << "\t";
-                cout << "content: 0x" << itoh(*addr_buffer+ACTUAL_SECTOR*_byte) << "\n";
+                unsigned short* actual_addr_buffer = addr_disk+ACTUAL_SECTOR*256+_byte;
+
+                *((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) = *actual_addr_buffer;
+                
+                cout << "write to byte " << _byte*2 << " at " << (unsigned long)((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) << "\t";
+                cout << "content: 0x" << itoh(*actual_addr_buffer) << "\n";
               }
 
             }
@@ -863,7 +869,7 @@ extern "C" int main(int argc, char *argv[]) {
       refreshThread.detach();
 
       Device::Keyboard *kb = new Device::Keyboard();
-      Device::Disk *master = new Device::Disk(virtual_memory_base_address);
+      Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
 
       Device::Devices *devices = new Device::Devices(master, kb);
       auto wrapper = [&]() {start_execution_by_clock(devices);};
