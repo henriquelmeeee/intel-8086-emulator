@@ -93,6 +93,8 @@ bool StartGDBCommunication() {
 #include "./Base.h"
 #include "./Instructions.h"
 
+std::map<unsigned short, unsigned short> ports;
+
 struct Registers regs;
 
 void move_cursor(short x, short y) {
@@ -128,7 +130,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 
 void dump_registers () {
   cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\t\tCS: 0x" << itoh(regs.cs) << "\n";
-  cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx) << "\t\tDX: 0x" << itoh(regs.dx) << "\n";
+  cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx.cx) << "\t\tDX: 0x" << itoh(regs.dx.dx) << "\n";
   cout << "BX: 0x" << itoh(regs.bx) << "\n";
   cout << "SP: 0x" << itoh(regs.sp) << "\t\tBP: 0x" << itoh(regs.bp) << "\n";
   return;
@@ -178,7 +180,7 @@ void push(short value) {
   *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
 }
 
-extern "C" ExecutionState decode_and_execute() {
+extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
     /*
         * We will try to detect the operational code of the actual instruction 
         * First we will try to decode one-byte code
@@ -186,7 +188,6 @@ extern "C" ExecutionState decode_and_execute() {
         * starting by register moving
     */
     
-    regs.ir = htons(regs.ir);
     struct InstructionArgs args = {
       *(virtual_memory_base_address+(regs.cs*16)+regs.pc),
       (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
@@ -194,11 +195,12 @@ extern "C" ExecutionState decode_and_execute() {
     };
     // 1-byte opcodes
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
-    switch( (regs.ir) >> 8 ) {
+    switch( (regs.ir) ) {
         case NOP: {
             cout << "nop\n";
             //++regs.pc;
             InstructionHandler::_NOP(args);
+            exit(1); // TEMPORARY for debug
             RETURN;
         };
         default: {
@@ -210,7 +212,7 @@ extern "C" ExecutionState decode_and_execute() {
     // 2-byte opcodes test
     byte imm_value = *(virtual_memory_base_address+(regs.cs*16)+regs.pc+1);
     signed char offset_1byte = (signed char) imm_value; // conditional jmps
-    switch( (regs.ir) >> 8 ) {
+    switch( (regs.ir) ) {
 
       /* MOvs */
 
@@ -222,13 +224,15 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0xB1: { // mov cl, imm8
-        regs.cx = (regs.cx&AH) | imm_value;
+        //regs.cx = (regs.cx&AH) | imm_value;
+        regs.cx.ch = imm_value;
         regs.pc += 2;
         return {};
       }
 
       case 0xB2: { // mov dl, imm8
-        regs.dx = (regs.dx&AH) | imm_value;
+        //regs.dx = (regs.dx&AH) | imm_value;
+        regs.dx.dh = imm_value;
         regs.pc += 2;
         return {};
       }
@@ -250,14 +254,16 @@ extern "C" ExecutionState decode_and_execute() {
       }
 
       case 0xB5: { // mov ch, imm8
-        regs.cx = (regs.cx&AL) | (imm_value<<8);
+        //regs.cx = (regs.cx&AL) | (imm_value<<8);
+        regs.cx.cl = args.imm8_value;
         regs.pc += 2;
         RETURN;
       }
 
 
       case 0xB6: { //mov dh, imm8
-        regs.dx = (regs.dx&AL) | (imm_value<<8);
+        //regs.dx = (regs.dx&AL) | (imm_value<<8);
+        regs.dx.dl = args.imm8_value;
         regs.pc += 2;
         RETURN;
       }
@@ -273,8 +279,8 @@ extern "C" ExecutionState decode_and_execute() {
       case INT: {
         // Interruptions
             
-        //cout << "regs.ir: " << itoh(regs.ir) << "\n";
-        switch( (regs.ir)&AL ) {
+        cout << "regs.ir: " << itoh(regs.ir) << "\n";
+        switch( args.imm8_value ) {
           case 0x10: { // BIOS VIDEO SERVICE
             //cout << "[DBG] BIOS VIDEO SERVICE\n";
             //switch( ((regs.ax)&AH)>>8 ) {
@@ -290,10 +296,11 @@ extern "C" ExecutionState decode_and_execute() {
                 RETURN;
               }
               case 0x02: { // CHANGE CURSOR
-                unsigned short line = ((regs.dx)&AH)>>8;
-                unsigned short column = (regs.dx)&AL;
-                unsigned short video_page = ((regs.bx)&AH)>>8;
-                move_cursor(line, column);
+                //unsigned short line = ((regs.dx)&AH)>>8;
+                //unsigned short column = (regs.dx)&AL;
+                //unsigned short video_page = ((regs.bx)&AH)>>8;
+                cout << "change cursor: todo: line,column,video_page, tirar &AH &AL e colocar regs.bx.bh regs.bx.bl\n";
+                //move_cursor(line, column);
                 regs.pc += 2;
                 RETURN;
               };
@@ -304,7 +311,41 @@ extern "C" ExecutionState decode_and_execute() {
         case 0x03: {
           exit(1);
         };
-                
+
+        case 0x13: { // read disk to memory (simulated)
+          // TODO o codigo abaixo é para a funcao 0x002 (AH), mas existem mais funcoes q precisam ser tratadas
+          CF = 0;
+          cout << "INT 0x13\n";
+          unsigned short sectors_to_read = regs.ax.al;
+          unsigned short cyl_number = regs.cx.ch;
+          unsigned short sector_base = regs.cx.cl;
+          unsigned short head_number = regs.dx.dh;
+          unsigned short drive_number = regs.dx.dl;
+          unsigned long addr_dest = ((regs.es*16)+regs.bx) + (unsigned long)virtual_memory_base_address;
+
+          if(devices->disks[drive_number]) {
+            unsigned short* addr_buffer = (unsigned short*)devices->disks[drive_number]->addr;
+            addr_buffer+=(cyl_number * DISK_HEADS_PER_CYL + head_number)*DISK_SECTORS_PER_CYL + sector_base;
+            cout << "addr_buffer do disco: " << addr_buffer << "\n";
+            // TODO 2 bytes por vez, mas podemos fazer 8 bytes por vez pra economizar ciclos
+            cout << "SECTORS TO READ: " << sectors_to_read << "\n";
+            cout << "VIRTUAL MEMORY ADDRESS TO WRITE: " << (unsigned long)((unsigned short*)addr_dest)-(unsigned long)virtual_memory_base_address;
+            for(int sector = 0; sector < sectors_to_read ; sector++) {
+              cout << "SECTOR: " << sector << "\n";
+              for(int _byte = 0; _byte<256; _byte++) {
+                int ACTUAL_SECTOR = sector+sector_base;
+                *((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) = *addr_buffer+ACTUAL_SECTOR*_byte;
+                cout << "write to byte " << _byte*2 << " at " << (unsigned long)((unsigned short*)addr_dest+sector*256+_byte) << "\t";
+                cout << "content: 0x" << itoh(*addr_buffer+ACTUAL_SECTOR*_byte) << "\n";
+              }
+
+            }
+          } else {
+            CF = 1;
+          }
+          regs.pc+=2;
+          RETURN;
+        }
       }
       break;
       }
@@ -389,7 +430,7 @@ extern "C" ExecutionState decode_and_execute() {
     /* 3-byte opcode tests */
 
     imm_value = (short) (*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
-    switch( (regs.ir)>>8 ) {
+    switch( (regs.ir) ) {
         
       case 0xB8: { // mov ax, imm16 
         regs.ax.ax = imm_value;
@@ -398,13 +439,13 @@ extern "C" ExecutionState decode_and_execute() {
       };
 
       case 0xB9: { // mov cx, imm16
-        regs.cx = imm_value;
+        regs.cx.cx = imm_value;
         regs.pc += 3;
         return {};
       };
 
       case 0xBA: { // mov dx, imm16
-        regs.dx = imm_value;
+        regs.dx.dx = imm_value;
         regs.pc += 3;
         return {};
       }
@@ -724,7 +765,7 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
           }
         }*/
         word instruction_offset = (regs.cs*16) + regs.pc;
-        regs.ir = *((unsigned short*)(virtual_memory_base_address+regs.cs+regs.pc));
+        regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";
         
         for(auto disk : devices->disks) {
@@ -736,7 +777,7 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
         if(STEP_BY_STEP)
           wait_for_user();
         ++iterations;
-        decode_and_execute();
+        decode_and_execute(devices);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
 }
@@ -784,7 +825,6 @@ extern "C" int main(int argc, char *argv[]) {
         cout << "Erro ao ler arquivo"; return -1; }
       byte buffer[512];
       std::fread(buffer, sizeof(byte), 512, disk);
-      std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
       for(int byte_ = 0; byte_ < 512; byte_++) {
         if(buffer[byte_] == 0)
           cout << ".";
@@ -813,6 +853,7 @@ extern "C" int main(int argc, char *argv[]) {
       regs.cs = 0;
       regs.ss = 0;
       regs.ds = 0;
+      regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
       regs.flags.all = 0;
 
       const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
@@ -822,7 +863,7 @@ extern "C" int main(int argc, char *argv[]) {
       refreshThread.detach();
 
       Device::Keyboard *kb = new Device::Keyboard();
-      Device::Disk *master = new Device::Disk();
+      Device::Disk *master = new Device::Disk(virtual_memory_base_address);
 
       Device::Devices *devices = new Device::Devices(master, kb);
       auto wrapper = [&]() {start_execution_by_clock(devices);};
@@ -833,6 +874,7 @@ extern "C" int main(int argc, char *argv[]) {
       while(Video::running);
 
       cout << "Programa finalizado\n";
+      std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
 
       return 0;
     return 0;

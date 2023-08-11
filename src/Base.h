@@ -52,13 +52,23 @@ union __ax {
   unsigned short ax;
 };
 
+union __cx {
+  struct {unsigned char cl; unsigned char ch;};
+  unsigned short cx;
+};
+
+union __dx {
+  struct {unsigned char dl; unsigned char dh;};
+  unsigned short dx;
+};
+
 struct Registers {
     /* General-Purposes registers */
     //_ax ax;
     word ax_DEPRECATED;
     __ax ax;
-    word cx;
-    word dx;
+    __cx cx;
+    __dx dx;
     word bx;
     word sp;
     word bp;
@@ -70,7 +80,7 @@ struct Registers {
     word ss;
     word ds;
     word es;
-    word ir;
+    unsigned char ir;
 } extern regs;
 
 /* FLAGS
@@ -122,9 +132,14 @@ namespace Instruction {
   #define NOP 0x90
 }
 
+#define DISK_SECTORS_PER_CYL 18
+#define DISK_CYLS 24
+#define DISK_HEADS_PER_CYL 4
+#define DISK_SECTORS DISK_CYLS*DISK_SECTORS_PER_CYL
+
+extern std::map<unsigned short, unsigned short> ports;
 namespace Device {
 
-  extern std::map<unsigned short, unsigned short> ports;
 
   class Disk {
     public:
@@ -146,7 +161,7 @@ namespace Device {
       std::string lastError;
       // TODO criar o resto dos buffer
 
-      Disk() {
+      Disk(unsigned char* location) {
         std::cout << "Creating new Disk\n";
         ports_in_use = {
           0x1F0,
@@ -158,6 +173,7 @@ namespace Device {
           0x1F6,
           0x1F7
         };
+        this->addr = location;
         lastError = "Unknown error";
       }
       int last_sector;

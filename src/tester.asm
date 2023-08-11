@@ -22,9 +22,15 @@ finish:
   call teste_overflow
 
 teste_overflow:
-  mov al, 'b'
-  int 0x10
-  jmp teste_overflow
+  mov ah, 2
+  mov al, 1
+  mov ch, 0
+  mov cl, 0
+  mov dh, 0
+  mov dl, 0
+  mov bx, 0x0
+  int 0x13
+  nop
 
 times 512 - ($ - $$)  db 0
 dw 0xAA55
