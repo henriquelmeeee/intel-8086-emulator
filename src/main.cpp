@@ -6,6 +6,7 @@
 */
 
 #include <iostream>
+#include <queue>
 #include <fstream>
 
 bool STEP_BY_STEP=false;
@@ -669,15 +670,19 @@ void inline wait_for_user() {
 const int _CHAR_WIDTH = VIDEO_WIDTH / VIDEO_COLUMNS;
 const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
 
+/* Interruption-related with SDL2; Video too */
+
+std::queue<struct Interruption> int_queue;
+
 namespace Video {
 #define VIDEO_REFRESH_RATE 1000 / 60
 
-  void drawCharsOnRefresh(SDL_Renderer* renderer, SDL_Texture* fontTexture, const char* videoMemory) {
+  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory) {
     //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
     for(int y = 0; y < VIDEO_ROWS / FONT_HEIGHT; y++) {
       for(int x = 0; x < VIDEO_COLUMNS / FONT_WIDTH; x++) {
         char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
-        cout << ch;
+        //cout << ch;
         // TODO render char in GUI
       }
     }
@@ -710,38 +715,24 @@ namespace Video {
 
     SDL_Event event;
 
-    SDL_Surface* fontSurface = IMG_Load("font.png");
-    if (!fontSurface) {
-        std::cerr << "IMG_Load Error: " << IMG_GetError() << std::endl;
-        return;
-    }
-    SDL_Texture* fontTexture = SDL_CreateTextureFromSurface(renderer, fontSurface);
-    SDL_FreeSurface(fontSurface);
-
-    while (running) {
+    while (running) { // TODO colocar isso numa thread separada pode melhorar a latencia entre o teclado e o emulador
       while(SDL_PollEvent(&event)) {
         if(event.type == SDL_QUIT) {
           running = false;
           break;
-        }
+        } else if(event.type == SDL_KEYDOWN) {
+          int_queue.push({KEYBOARD, new KeyboardInterruption(event.key.keysym.sym)});
+        };
       }
-      cout << "[Video] refresh\tAtualizando janela...";
       SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
       SDL_RenderClear(renderer);
-      cout << "\tJanela limpa...";
 
-      SDL_Surface* fontSurface = IMG_Load("font.png");
-      if(!fontSurface) {
-        cout << "!fontSurface\n"; // TODO handle
-      }
-      SDL_Texture* fontTexture = SDL_CreateTextureFromSurface(renderer, fontSurface);
       /*SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
       SDL_Rect rect = {50,50,200,100};
       SDL_RenderFillRect(renderer, &rect); // apenas para teste*/
       
-      drawCharsOnRefresh(renderer, fontTexture, videoMemory);
+      drawCharsOnRefresh(renderer, videoMemory);
       SDL_RenderPresent(renderer);
-      cout << "\n";
       std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
     }
     SDL_DestroyRenderer(renderer);
@@ -779,7 +770,21 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
             cout << "Disk error: " << disk->getLastError() << "\n";
           }
         }
-        
+
+        // FIFO model
+        if( ((!(int_queue.empty())) && IF) /* && NOT_IN_INTERRUPTION */ ) {
+          Interruption _int = int_queue.front();
+          if(_int.type == KEYBOARD) {
+            cout << "Calling handler of Keyboard Interruption\n";
+            KeyboardInterruption* handler = reinterpret_cast<KeyboardInterruption*>(_int.interruption_object);
+            handler->handle();
+          }
+          // TODO chamar interrupção adequada
+          // seria bom, em cada interruption_object, ter uma rotina para lidar com o handler de interrupção,
+          //int_queue.front()->interruption_object->handle();
+          int_queue.pop();
+        }
+
         if(STEP_BY_STEP)
           wait_for_user();
         ++iterations;
@@ -789,11 +794,6 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
 }
 
 extern "C" int main(int argc, char *argv[]) {
-    /* Argumentos:
-        * argv[1] = arquivo de disco *.img
-        *
-    */
-
       namespace po = boost::program_options;
 
       po::options_description desc("Allowed options");
@@ -867,6 +867,7 @@ extern "C" int main(int argc, char *argv[]) {
       regs.ds = 0;
       regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
       regs.flags.all = 0;
+      IF = 1;
 
       const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 

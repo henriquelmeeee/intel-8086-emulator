@@ -16,6 +16,8 @@ extern std::map<unsigned char, struct InstructionInfo> opcode_map;
 #define VIDEO_COLUMNS 80
 #define VIDEO_ROWS 25
 
+extern unsigned char* virtual_memory_base_address;
+
 #include "Instructions.h"
 
 struct FlagsRegister {
@@ -138,6 +140,37 @@ namespace Instruction {
 #define DISK_SECTORS DISK_CYLS*DISK_SECTORS_PER_CYL
 
 extern std::map<unsigned short, unsigned short> ports;
+
+enum InterruptionType {
+  KEYBOARD,
+  MOUSE,
+  UNKNOWN,
+};
+
+struct Interruption {
+  enum InterruptionType type;
+  void* interruption_object;
+};
+
+class KeyboardInterruption {
+  public:
+    char key;
+
+    KeyboardInterruption(char _key) {
+      key = _key;
+      std::cout << "New Keyboard Interruption\n";
+    };
+
+    bool handle() {
+      unsigned char* addr_dest = virtual_memory_base_address+38;
+      unsigned long segment = *((unsigned short*)(addr_dest+2)); // endereços 40 e 41
+      unsigned long addr_to_jump = *((unsigned short*)addr_dest);// endereços 38 e 39
+      regs.pc = (segment << 4)+addr_to_jump;
+      // TODO definir estado atual do processador para uma interrupção
+      return true;
+    };
+};
+
 namespace Device {
 
 
