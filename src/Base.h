@@ -134,6 +134,12 @@ namespace Instruction {
   #define NOP 0x90
 }
 
+void push(short value) {
+  // TODO overflow check
+  regs.sp -= 2;
+  *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
+}
+
 #define DISK_SECTORS_PER_CYL 18
 #define DISK_CYLS 24
 #define DISK_HEADS_PER_CYL 4
@@ -162,6 +168,9 @@ class KeyboardInterruption {
     };
 
     bool handle() {
+      push(regs.flags.all);
+      push(regs.cs);
+      push(regs.pc);
       unsigned char* addr_dest = virtual_memory_base_address+38;
       unsigned long segment = *((unsigned short*)(addr_dest+2)); // endereços 40 e 41
       unsigned long addr_to_jump = *((unsigned short*)addr_dest);// endereços 38 e 39

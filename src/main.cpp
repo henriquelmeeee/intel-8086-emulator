@@ -175,12 +175,6 @@ unsigned short inline get_register_value_by_index(unsigned char index) {
   return 1;
 }
 
-void push(short value) {
-  // TODO overflow check
-  regs.sp -= 2;
-  *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
-}
-
 extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
     /*
         * We will try to detect the operational code of the actual instruction 
