@@ -798,7 +798,9 @@ extern "C" int main(int argc, char *argv[]) {
 
       po::options_description desc("Allowed options");
       desc.add_options()
-        ("breakpoint,bp", "breakpoint gerado no início da execução");
+        ("breakpoint,bp", "breakpoint gerado no início da execução")
+        ("master,m", po::value<std::string>(), "caminho para o disco master")
+        ("slaves,disks", po::value<std::string>(), "discos adicionais");
 
       po::variables_map vm;
       po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -808,11 +810,13 @@ extern "C" int main(int argc, char *argv[]) {
         STEP_BY_STEP = true;
         cout << "BREAKPOINT habilitado\n";
       }
-      system("clear");
-      //std::ofstream out("debug");
-      //std::streambuf *coutbuf = cout.rdbuf();
-      //cout.rdbuf(out.rdbuf());
 
+      if(!vm.count("master")){
+        cout << "Informe um disco para ser carregado\n";
+        exit(1);
+      }
+
+      system("clear");
       
       /*serverSocket = 0*/;
       #ifdef CONNECT_BY_GDB
@@ -824,8 +828,10 @@ extern "C" int main(int argc, char *argv[]) {
                   << itoh((unsigned long)virtual_memory_base_address) << "\n";
                     
       cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
-        
-      FILE* disk = std::fopen("source", "rb");
+      
+      const char* master_param_location = vm["master"].as<std::string>().c_str();
+      FILE* disk = std::fopen(master_param_location, "rb");
+
       FILE* second_disk = std::fopen("handle_cpu_fault", "rb"); // just for test
       if(!disk) {
         cout << "Erro ao ler arquivo"; return -1; }
