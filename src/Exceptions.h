@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef EXCEPTIONS
 #define EXCEPTIONS
 

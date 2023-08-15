@@ -16,6 +16,12 @@ namespace InstructionHandler {
     return;
   }
 
+  void _HLT(DEFAULT_ARGS) {
+    Processor.hlt = true;
+    regs.pc+=1;
+    return;
+  }
+
   void NotImplemented(DEFAULT_ARGS) {
     unsigned char size = opcode_map[regs.ir].size;
     regs.pc+=size;

@@ -1,3 +1,5 @@
+#pragma once
+
 #ifndef BASE
 #define BASE
 
@@ -10,6 +12,19 @@ typedef unsigned short word;
 #include <vector>
 
 extern std::map<unsigned char, struct InstructionInfo> opcode_map;
+
+class Processor {
+  public:
+    bool areInException;
+    bool areInInterruption;
+
+    bool hlt;
+
+    Processor() {
+      this->areInException = false;
+      this->hlt = false;
+    }
+} extern Processor;
 
 #define VIDEO_WIDTH 640
 #define VIDEO_HEIGHT 480
@@ -134,11 +149,7 @@ namespace Instruction {
   #define NOP 0x90
 }
 
-void push(short value) {
-  // TODO overflow check
-  regs.sp -= 2;
-  *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
-}
+extern void _push(short value);
 
 #define DISK_SECTORS_PER_CYL 18
 #define DISK_CYLS 24
@@ -168,9 +179,9 @@ class KeyboardInterruption {
     };
 
     bool handle() {
-      push(regs.flags.all);
-      push(regs.cs);
-      push(regs.pc);
+      _push(regs.flags.all);
+      _push(regs.cs);
+      _push(regs.pc);
       unsigned char* addr_dest = virtual_memory_base_address+38;
       unsigned long segment = *((unsigned short*)(addr_dest+2)); // endereços 40 e 41
       unsigned long addr_to_jump = *((unsigned short*)addr_dest);// endereços 38 e 39

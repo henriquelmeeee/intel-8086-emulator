@@ -15,12 +15,6 @@ bool STEP_BY_STEP=false;
 // inclusive o Instructions.h
 // TODO FIXME colocar handler pra instrucao "iret"
 
-class Processor {
-  public:
-    bool AreInException;
-} Processor;
-
-
 #include <stdlib.h>
 #include <sys/mman.h>
 
@@ -44,16 +38,28 @@ unsigned long iterations = 0;
 
 #include <boost/program_options.hpp>
 
+#define NI InstructionHandler::NotImplemented
+
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
+  /* ADD, SUB */
   {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
-  {0x72, {2, InstructionHandler::NotImplemented, "JB rel8"}},
-  {0x90, {1, InstructionHandler::_NOP, "NOP"}},
+  {0x2C, {2, NI, "SUB al, imm8"}}, // not sure!
   {0x2C, {2, InstructionHandler::NotImplemented, "SUB al, imm8"}}, // not sure!
   
+  /* JMPs */
+  {0xE9, {3, NI, "JMP rel16"}},
+  {0xEB, {2, NI, "JMP rel8"}},
+  {0x72, {2, NI, "JB rel8"}},
+
+  {0x90, {1, InstructionHandler::_NOP, "NOP"}},
+  
   /* IN and OUT */
-  {0xE4, {2, InstructionHandler::NotImplemented, "IN al, imm8"}},
+  {0xE4, {2, NI, "IN al, imm8"}},
   {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
+  {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
+
+  {}
 };
 
 /* Video-related */
@@ -91,8 +97,8 @@ bool StartGDBCommunication() {
   return true;
 }*/
 
-#include "./Base.h"
-#include "./Instructions.h"
+#include "Base.h"
+#include "Instructions.h"
 
 std::map<unsigned short, unsigned short> ports;
 
@@ -142,7 +148,11 @@ int main_clock_freq = 30;
 void infinite_loop() {
     while(true);
 }
-
+void _push(short value) {
+  // TODO overflow check
+  regs.sp -= 2;
+  *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
+}
 void inline cursor_update_byone() {
   // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
   // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
@@ -602,19 +612,19 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         cout << "\033[31mCPU Fault at 0x" << itoh(regs.pc) << "\033[0m\n";
         dump_registers();
         cout << "Instructions Counter: " << iterations << "\nCalling handler...\n";
-        if(Processor.AreInException) {
+        if(Processor.areInException) {
           cout << "\033[31mDouble fault detected, shutting down...\033[0m\n";
           exit(1);
         }
-        push(regs.cs);
-        push(regs.pc);
-        push(regs.flags.all);
+        _push(regs.cs);
+        _push(regs.pc);
+        _push(regs.flags.all);
 
         unsigned short code_segment = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4);
         regs.cs = code_segment;
         unsigned short routine_addr = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4+2);
         regs.pc = routine_addr;
-        Processor.AreInException = true;
+        Processor.areInException = true;
         cout << "PC is now 0x" << itoh(regs.pc) << "\n";
         return {};
       };
@@ -766,7 +776,10 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
         }
 
         // FIFO model
-        if( ((!(int_queue.empty())) && IF) /* && NOT_IN_INTERRUPTION */ ) {
+        
+        if( ((!(int_queue.empty())) && IF) && !Processor.areInException && !Processor.areInInterruption) {
+          if(Processor.hlt)
+            Processor.hlt = false;
           Interruption _int = int_queue.front();
           if(_int.type == KEYBOARD) {
             cout << "Calling handler of Keyboard Interruption\n";
@@ -778,11 +791,12 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
           //int_queue.front()->interruption_object->handle();
           int_queue.pop();
         }
-
+        
         if(STEP_BY_STEP)
           wait_for_user();
         ++iterations;
-        decode_and_execute(devices);
+        if(!Processor.hlt)
+          decode_and_execute(devices);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }
 }
