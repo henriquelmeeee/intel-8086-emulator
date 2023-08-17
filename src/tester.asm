@@ -11,6 +11,7 @@ teste:
   ;add byte [bx + si], al
   ;nop
   ;jmp teste
+  add bl, bl
   jmp finish
 
 finish:
@@ -30,7 +31,6 @@ teste_overflow:
   mov dl, 0
   mov bx, 0x0
   int 0x13
-  jmp 0x0
 
 times 512 - ($ - $$)  db 0
 dw 0xAA55

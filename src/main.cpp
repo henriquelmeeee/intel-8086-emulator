@@ -30,8 +30,6 @@ bool STEP_BY_STEP=false;
 
 #include "Utils.h"
 
-unsigned long iterations = 0;
-
 #include <map>
 #include "Instructions.h"
 #include "Exceptions.h"
@@ -40,12 +38,13 @@ unsigned long iterations = 0;
 
 #define NI InstructionHandler::NotImplemented
 
+unsigned long iterations = 0;
+
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
   /* ADD, SUB */
   {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
   {0x2C, {2, NI, "SUB al, imm8"}}, // not sure!
-  {0x2C, {2, InstructionHandler::NotImplemented, "SUB al, imm8"}}, // not sure!
   
   /* JMPs */
   {0xE9, {3, NI, "JMP rel16"}},
@@ -57,9 +56,21 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   /* IN and OUT */
   {0xE4, {2, NI, "IN al, imm8"}},
   {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
-  {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
 
-  {}
+  {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
+  
+  {0xCD, {2, NI, "INT imm8"}},
+
+  /* MOVs */
+  {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
+  {0xB4, {2, InstructionHandler::MOV::_AH_imm8, "MOV ah, imm8"}},
+  {0xB0, {2, InstructionHandler::MOV::_AL_imm8, "MOV al, imm8"}},
+  {0xB5, {2, InstructionHandler::MOV::_CH_imm8, "MOV ch, imm8"}},
+  {0xB1, {2, InstructionHandler::MOV::_CL_imm8, "MOV cl, imm8"}},
+  {0xB6, {2, InstructionHandler::MOV::_DH_imm8, "MOV dh, imm8"}},
+  {0xB7, {2, InstructionHandler::MOV::_BH_imm8, "MOV bh, imm8"}},
+
+  {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg_or_addr"}},
 };
 
 /* Video-related */
@@ -103,6 +114,7 @@ bool StartGDBCommunication() {
 std::map<unsigned short, unsigned short> ports;
 
 struct Registers regs;
+Processor CPU;
 
 void move_cursor(short x, short y) {
   std::cout.flush();
@@ -138,7 +150,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 void dump_registers () {
   cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\t\tCS: 0x" << itoh(regs.cs) << "\n";
   cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx.cx) << "\t\tDX: 0x" << itoh(regs.dx.dx) << "\n";
-  cout << "BX: 0x" << itoh(regs.bx) << "\n";
+  cout << "BX: 0x" << itoh(regs.bx.bx) << "\n";
   cout << "SP: 0x" << itoh(regs.sp) << "\t\tBP: 0x" << itoh(regs.bp) << "\n";
   return;
 }
@@ -198,6 +210,13 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
       (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
     };
+
+    if(!(opcode_map[regs.ir].handler == nullptr)) {
+      opcode_map[regs.ir].handler(args);
+      RETURN;
+    } else {
+      cout << "Instruction not found\n"; // TODO throw error invalid opcode
+    }
     // 1-byte opcodes
     //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
     switch( (regs.ir) ) {
@@ -243,7 +262,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       }
 
       case 0xB3: { // mov bl, imm8
-        regs.bx = (regs.bx&AH) | imm_value;
+        regs.bx.bl = args.imm8_value;
         regs.pc += 2;
         return {};
       }
@@ -256,28 +275,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         regs.ax.ah = args.imm8_value;
         regs.pc += 2;
         return {};
-      }
-
-      case 0xB5: { // mov ch, imm8
-        //regs.cx = (regs.cx&AL) | (imm_value<<8);
-        regs.cx.cl = args.imm8_value;
-        regs.pc += 2;
-        RETURN;
-      }
-
-
-      case 0xB6: { //mov dh, imm8
-        //regs.dx = (regs.dx&AL) | (imm_value<<8);
-        regs.dx.dl = args.imm8_value;
-        regs.pc += 2;
-        RETURN;
-      }
-
-
-      case 0xB7: { // mov bh, imm8
-        regs.bx = (regs.bx&AL) | (imm_value<<8);
-        regs.pc += 2;
-        RETURN;
       }
 
 
@@ -326,7 +323,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
           unsigned short sector_base = regs.cx.cl;
           unsigned short head_number = regs.dx.dh;
           unsigned short drive_number = regs.dx.dl;
-          unsigned long addr_dest = ((regs.es*16)+regs.bx) + (unsigned long)virtual_memory_base_address;
+          unsigned long addr_dest = ((regs.es*16)+regs.bx.bx) + (unsigned long)virtual_memory_base_address;
 
           if(devices->disks[drive_number]) {
             unsigned short* addr_disk = (unsigned short*)(devices->disks[drive_number]->addr);
@@ -462,7 +459,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       }
 
       case 0xBB: { // mov bx, imm16
-        regs.bx = imm_value;
+        regs.bx.bx = args.imm16_value;
         regs.pc += 3;
         return {};
       }
@@ -551,12 +548,12 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
           unsigned short pointer = 0;
           switch(R_M) {
             case 0: { // [BX + SI]
-              pointer = (regs.ds*16) + regs.bx + regs.si;
+              pointer = (regs.ds*16) + regs.bx.bx + regs.si;
               cout << "bx+si\n";
               break;
             }
             case 1: { // [BX + DI]
-              pointer = (regs.ds*16) + regs.bx + regs.di;
+              pointer = (regs.ds*16) + regs.bx.bx + regs.di;
               cout << "bx+di\n";
               break;
             }
@@ -612,7 +609,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         cout << "\033[31mCPU Fault at 0x" << itoh(regs.pc) << "\033[0m\n";
         dump_registers();
         cout << "Instructions Counter: " << iterations << "\nCalling handler...\n";
-        if(Processor.areInException) {
+        if(CPU.areInException) {
           cout << "\033[31mDouble fault detected, shutting down...\033[0m\n";
           exit(1);
         }
@@ -624,7 +621,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         regs.cs = code_segment;
         unsigned short routine_addr = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4+2);
         regs.pc = routine_addr;
-        Processor.areInException = true;
+        CPU.areInException = true;
         cout << "PC is now 0x" << itoh(regs.pc) << "\n";
         return {};
       };
@@ -777,9 +774,9 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
 
         // FIFO model
         
-        if( ((!(int_queue.empty())) && IF) && !Processor.areInException && !Processor.areInInterruption) {
-          if(Processor.hlt)
-            Processor.hlt = false;
+        if( ((!(int_queue.empty())) && IF) && !CPU.areInException && !CPU.areInInterruption) {
+          if(CPU.hlt)
+            CPU.hlt = false;
           Interruption _int = int_queue.front();
           if(_int.type == KEYBOARD) {
             cout << "Calling handler of Keyboard Interruption\n";
@@ -795,7 +792,7 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
         if(STEP_BY_STEP)
           wait_for_user();
         ++iterations;
-        if(!Processor.hlt)
+        if(!CPU.hlt)
           decode_and_execute(devices);
         std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
     }

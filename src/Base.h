@@ -24,7 +24,8 @@ class Processor {
       this->areInException = false;
       this->hlt = false;
     }
-} extern Processor;
+};
+extern Processor CPU;
 
 #define VIDEO_WIDTH 640
 #define VIDEO_HEIGHT 480
@@ -79,6 +80,11 @@ union __dx {
   unsigned short dx;
 };
 
+union __bx {
+  struct {unsigned  char bl; unsigned char bh;};
+  unsigned short bx;
+};
+
 struct Registers {
     /* General-Purposes registers */
     //_ax ax;
@@ -86,7 +92,7 @@ struct Registers {
     __ax ax;
     __cx cx;
     __dx dx;
-    word bx;
+    __bx bx;
     word sp;
     word bp;
     word si;
