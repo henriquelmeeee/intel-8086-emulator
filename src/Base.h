@@ -172,6 +172,13 @@ extern void _push(short value);
 
 extern std::map<unsigned short, unsigned short> ports;
 
+void _push(short value);
+void inline cursor_update_byone();
+void inline jump_to(int offset);
+unsigned short inline get_register_value_by_index(unsigned char index);
+void dump_registers();
+void move_cursor(short x, short y);
+
 enum InterruptionType {
   KEYBOARD,
   MOUSE,

@@ -29,6 +29,7 @@ struct InstructionInfo {
 namespace InstructionHandler {
   void _NOP(DEFAULT_ARGS);
   void _HLT(DEFAULT_ARGS);
+  void _INT(DEFAULT_ARGS);
   void NotImplemented(DEFAULT_ARGS);
   void _IN_al_dx(DEFAULT_ARGS);
   void _ADD_regoraddr_8bits(DEFAULT_ARGS);
