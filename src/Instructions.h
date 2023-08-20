@@ -5,6 +5,9 @@
 
 #include <string>
 #include <stdlib.h>
+#include "Utils.h"
+#include "Base.h"
+#include "Devices.h"
 
 #define _DEFAULT_ARGS struct InstructionArgs
 #define DEFAULT_ARGS _DEFAULT_ARGS args
@@ -13,6 +16,7 @@ struct InstructionArgs {
   unsigned char opcode;
   unsigned char imm8_value;
   unsigned short imm16_value;
+  Device::Devices* devices;
 };
 
 struct InstructionInfo {
@@ -40,6 +44,7 @@ namespace InstructionHandler {
     void _CH_imm8(DEFAULT_ARGS);
     void _AX_imm16(DEFAULT_ARGS);
     void _AH_imm8(DEFAULT_ARGS);
+    void _SP_imm16(DEFAULT_ARGS);
     void _CL_imm8(DEFAULT_ARGS);
   }
   namespace CALL {

@@ -16,7 +16,7 @@ void move_cursor(short x, short y) {
 
 }
 
-void dump_registers () {
+void dump_registers() {
   std::cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\t\tCS: 0x" << itoh(regs.cs) << "\n";
   std::cout << "AX: 0x" << itoh(regs.ax.ax) << "\t\tCX: 0x" << itoh(regs.cx.cx) << "\t\tDX: 0x" << itoh(regs.dx.dx) << "\n";
   std::cout << "BX: 0x" << itoh(regs.bx.bx) << "\n";
@@ -30,7 +30,7 @@ void _push(short value) {
   *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
 }
 
-void inline cursor_update_byone() {
+void cursor_update_byone() {
   // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
   // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
   // btw o código abaixo (calcular X e Y) é inútil por enquanto
@@ -48,18 +48,18 @@ void inline cursor_update_byone() {
   return;
 }
 
-void inline write_char_on_memory(char ch) {
+void write_char_on_memory(char ch) {
   *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location) = ch;
   *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location+1) = 0; // white
 }
 
 
-unsigned short inline get_register_value_by_index(unsigned char index) {
+unsigned short get_register_value_by_index(unsigned char index) {
   // TODO get register by index in "value_to_add", a menos que seja algo como add [imm16], value
   return 1;
 }
 
-void inline jump_to(int offset) {
+void jump_to(int offset) {
   regs.pc += (offset);
 }
 

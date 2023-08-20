@@ -8,8 +8,6 @@
 #include "Base.h"
 #include "Utils.h"
 
-#define DEFAULT_ARGS struct InstructionArgs args
-
 namespace InstructionHandler {
   void _NOP(DEFAULT_ARGS) {
     regs.pc+=1;
@@ -45,6 +43,7 @@ namespace InstructionHandler {
           switch(regs.ax.ah) {
             case 0x0e:
               {
+                std::cout << "int print char\n";
                 _print(args);
                 //write_char_on_memory((char)regs.ax.al);
                 //cursor_update_byone();
@@ -85,8 +84,8 @@ namespace InstructionHandler {
           unsigned short drive_number = regs.dx.dl;
           unsigned long addr_dest = ((regs.es*16)+regs.bx.bx) + (unsigned long)virtual_memory_base_address;
 
-          if(devices->disks[drive_number]) {
-            unsigned short* addr_disk = (unsigned short*)(devices->disks[drive_number]->addr);
+          if(args.devices->disks[drive_number]) {
+            unsigned short* addr_disk = (unsigned short*)(args.devices->disks[drive_number]->addr);
             addr_disk+=(cyl_number * DISK_HEADS_PER_CYL + head_number)*DISK_SECTORS_PER_CYL + sector_base;
             
             // TODO 2 bytes por vez, mas podemos fazer 8 bytes por vez pra economizar ciclos
@@ -176,6 +175,17 @@ namespace InstructionHandler {
   }
 
   namespace MOV {
+
+    void _AX_imm16(DEFAULT_ARGS) { // 0xB8
+      regs.ax.ax = args.imm16_value;
+      regs.pc += 3;
+    }
+
+    void _SP_imm16(DEFAULT_ARGS) { // 0xBC
+      regs.sp = args.imm16_value;
+      regs.pc += 3;
+    }
+
     void _AL_imm8(DEFAULT_ARGS) {
       //regs.ax = (regs.ax&AH) | args.imm8_value;
       regs.ax.al = args.imm8_value;
@@ -197,10 +207,7 @@ namespace InstructionHandler {
       regs.pc += 2;
     }
 
-    void _AX_imm16(DEFAULT_ARGS) { // 0xB8
-      regs.ax.ax = args.imm16_value;
-      regs.pc += 3;
-    }
+
 
     void _AH_imm8(DEFAULT_ARGS) { // 0xB4
       regs.ax.ah = args.imm8_value;

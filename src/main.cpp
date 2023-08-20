@@ -37,6 +37,7 @@ bool STEP_BY_STEP=false;
 #include "Utils.h"
 
 #include <map>
+#include "Devices.h"
 #include "Instructions.h"
 #include "Exceptions.h"
 
@@ -69,6 +70,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
 
   /* MOVs */
   {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
+  {0xBC, {3, InstructionHandler::MOV::_SP_imm16, "MOV sp, imm16"}},
   {0xB4, {2, InstructionHandler::MOV::_AH_imm8, "MOV ah, imm8"}},
   {0xB0, {2, InstructionHandler::MOV::_AL_imm8, "MOV al, imm8"}},
   {0xB5, {2, InstructionHandler::MOV::_CH_imm8, "MOV ch, imm8"}},
@@ -155,6 +157,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       *(virtual_memory_base_address+(regs.cs*16)+regs.pc),
       (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
       (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
+      devices,
     };
 
     if(!(opcode_map[regs.ir].handler == nullptr)) {
