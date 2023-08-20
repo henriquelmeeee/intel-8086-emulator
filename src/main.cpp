@@ -5,6 +5,12 @@
  by https://henriquedev.com
 */
 
+
+// TODO FIXME colocar o Device::devices para Instructions.cpp poder usar
+// Fazer Base.cpp com as funcs principais tipo write_char_to_video_memory algo assim
+
+
+
 #include <iostream>
 #include <queue>
 #include <fstream>
@@ -19,7 +25,7 @@ bool STEP_BY_STEP=false;
 #include <sys/mman.h>
 
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 #include <thread>
 #include <chrono>
 
@@ -59,7 +65,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
 
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
   
-  {0xCD, {2, NI, "INT imm8"}},
+  {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
   {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
@@ -138,14 +144,6 @@ typedef unsigned short word;
 #define MB (1024*1024)
 
 byte *virtual_memory_base_address;
-
-template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
-    static const char* digits = "0123456789ABCDEF";
-    std::string rc(hex_len,'0');
-    for (size_t i=0, j=(hex_len-1)*4 ; i<hex_len; ++i,j-=4)
-        rc[i] = digits[(w>>j) & 0x0f];
-    return rc;
-}
 
 void dump_registers () {
   cout << "PC: 0x" << itoh(regs.pc) << "\t\tIR: 0x" << itoh(regs.ir) << "\t\tCS: 0x" << itoh(regs.cs) << "\n";
@@ -276,90 +274,11 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         regs.pc += 2;
         return {};
       }
-
-
-      case INT: {
-        // Interruptions
-            
-        cout << "regs.ir: " << itoh(regs.ir) << "\n";
-        switch( args.imm8_value ) {
-          case 0x10: { // BIOS VIDEO SERVICE
-            //cout << "[DBG] BIOS VIDEO SERVICE\n";
-            //switch( ((regs.ax)&AH)>>8 ) {
-            switch(regs.ax.ah) {
-              case 0x0e: { // DISPLAY CARACTER
-                //cout << (char)((regs.ax)&AL) << flush;
-                cout << (char)regs.ax.al << flush;
-                regs.pc+= 2;
-                
-                //write_char_on_memory((char)(regs.ax&AL));
-                write_char_on_memory((char)regs.ax.al);
-                cursor_update_byone();
-                RETURN;
-              }
-              case 0x02: { // CHANGE CURSOR
-                //unsigned short line = ((regs.dx)&AH)>>8;
-                //unsigned short column = (regs.dx)&AL;
-                //unsigned short video_page = ((regs.bx)&AH)>>8;
-                cout << "change cursor: todo: line,column,video_page, tirar &AH &AL e colocar regs.bx.bh regs.bx.bl\n";
-                //move_cursor(line, column);
-                regs.pc += 2;
-                RETURN;
-              };
-          };
-          break;
-        };
-   
-        case 0x03: {
-          exit(1);
-        };
-
         case 0x13: { // read disk to memory (simulated)
-          // TODO o codigo abaixo é para a funcao 0x002 (AH), mas existem mais funcoes q precisam ser tratadas
-          CF = 0;
-          cout << "INT 0x13\n";
-          unsigned short sectors_to_read = regs.ax.al;
-          unsigned short cyl_number = regs.cx.ch;
-          unsigned short sector_base = regs.cx.cl;
-          unsigned short head_number = regs.dx.dh;
-          unsigned short drive_number = regs.dx.dl;
-          unsigned long addr_dest = ((regs.es*16)+regs.bx.bx) + (unsigned long)virtual_memory_base_address;
-
-          if(devices->disks[drive_number]) {
-            unsigned short* addr_disk = (unsigned short*)(devices->disks[drive_number]->addr);
-            addr_disk+=(cyl_number * DISK_HEADS_PER_CYL + head_number)*DISK_SECTORS_PER_CYL + sector_base;
-            
-            // TODO 2 bytes por vez, mas podemos fazer 8 bytes por vez pra economizar ciclos
-            
-            cout << "SECTORS TO READ: " << sectors_to_read << "\n";
-            cout << "VIRTUAL MEMORY ADDRESS TO WRITE: " << (unsigned long)((unsigned short*)addr_dest)-(unsigned long)virtual_memory_base_address;
-            
-            for(int sector = 0; sector < sectors_to_read ; sector++) {
-              cout << "SECTOR: " << sector << "\n";
-              for(int _byte = 0; _byte<256; _byte++) {
-
-                int ACTUAL_SECTOR = sector+sector_base;
-                unsigned short* actual_addr_buffer = addr_disk+ACTUAL_SECTOR*256+_byte;
-
-                *((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) = *actual_addr_buffer;
-                
-                cout << "write to byte " << _byte*2 << " at " << (unsigned long)((unsigned short*)addr_dest+ACTUAL_SECTOR*256+_byte) << "\t";
-                cout << "content: 0x" << itoh(*actual_addr_buffer) << "\n";
-              }
-
-            }
-          } else {
-            CF = 1;
-          }
-          regs.pc+=2;
-          RETURN;
+                  RETURN;
         }
       }
-      break;
-      }
-  
       /* Conditional Jumps */
-
 
       case 0x77: { // ja/jnbe (>=)
         if(CF == 0 && ZF == 0) {
@@ -678,11 +597,26 @@ std::queue<struct Interruption> int_queue;
 namespace Video {
 #define VIDEO_REFRESH_RATE 1000 / 60
 
-  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory) {
+  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory, TTF_Font* font) {
     //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
     for(int y = 0; y < VIDEO_ROWS / FONT_HEIGHT; y++) {
       for(int x = 0; x < VIDEO_COLUMNS / FONT_WIDTH; x++) {
         char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
+
+        SDL_Color textColor = {255, 255, 255, 255};
+
+        SDL_Surface* surface = TTF_RenderText_Solid(font, &ch, textColor);
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+
+        SDL_Rect dst;
+        dst.x = x * FONT_WIDTH;
+        dst.y = y * FONT_HEIGHT;
+        dst.w = FONT_WIDTH;
+        dst.h = FONT_HEIGHT;
+        SDL_RenderCopy(renderer, texture, NULL, &dst);
+        SDL_DestroyTexture(texture);
+        SDL_FreeSurface(surface);
+
         //cout << ch;
         // TODO render char in GUI
       }
@@ -698,7 +632,10 @@ namespace Video {
       return;
     }
     
-    SDL_Window* window = SDL_CreateWindow("SDL2 Simple Example", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, VIDEO_WIDTH, VIDEO_HEIGHT, SDL_WINDOW_SHOWN);
+
+    SDL_Window* window = SDL_CreateWindow("Terminal", \
+        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, VIDEO_WIDTH * FONT_WIDTH, VIDEO_HEIGHT * FONT_HEIGHT, 0);
+
     if(window == nullptr) {
       std::cerr << "SDL_CreateWindow err: " << SDL_GetError() << std::endl;
       SDL_Quit();
@@ -716,6 +653,15 @@ namespace Video {
 
     SDL_Event event;
 
+    TTF_Init();
+
+    TTF_Font* font = TTF_OpenFont("chars.ttf", 24);
+    if(font == nullptr) {
+      SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
+      exit(1);
+    }
+   
+
     while (running) { // TODO colocar isso numa thread separada pode melhorar a latencia entre o teclado e o emulador
       while(SDL_PollEvent(&event)) {
         if(event.type == SDL_QUIT) {
@@ -725,17 +671,14 @@ namespace Video {
           int_queue.push({KEYBOARD, new KeyboardInterruption(event.key.keysym.sym)});
         };
       }
-      SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
       SDL_RenderClear(renderer);
 
-      /*SDL_SetRenderDrawColor(renderer, 255, 0, 0, 255);
-      SDL_Rect rect = {50,50,200,100};
-      SDL_RenderFillRect(renderer, &rect); // apenas para teste*/
-      
-      drawCharsOnRefresh(renderer, videoMemory);
+      drawCharsOnRefresh(renderer, videoMemory, font);
       SDL_RenderPresent(renderer);
       std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
     }
+
+    TTF_CloseFont(font);
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();

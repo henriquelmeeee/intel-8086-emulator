@@ -11,6 +11,14 @@ typedef unsigned short word;
 #include <map>
 #include <vector>
 
+template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len,'0');
+    for (size_t i=0, j=(hex_len-1)*4 ; i<hex_len; ++i,j-=4)
+        rc[i] = digits[(w>>j) & 0x0f];
+    return rc;
+}
+
 extern std::map<unsigned char, struct InstructionInfo> opcode_map;
 
 class Processor {
@@ -27,8 +35,8 @@ class Processor {
 };
 extern Processor CPU;
 
-#define VIDEO_WIDTH 640
-#define VIDEO_HEIGHT 480
+#define VIDEO_WIDTH 80
+#define VIDEO_HEIGHT 25
 #define VIDEO_COLUMNS 80
 #define VIDEO_ROWS 25
 
