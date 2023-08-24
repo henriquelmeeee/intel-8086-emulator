@@ -41,7 +41,14 @@ extern Processor CPU;
 #define VIDEO_ROWS 25
 
 extern unsigned char* virtual_memory_base_address;
+extern unsigned long cursor_location;
+inline void write_char_on_memory(char ch) {
+  *(virtual_memory_base_address+cursor_location) = ch;
+}
 
+inline void cursor_update_byone() {
+  cursor_location+=2;
+}
 
 struct FlagsRegister {
   word CF : 1;
@@ -172,7 +179,6 @@ extern void _push(short value);
 
 
 void _push(short value);
-void cursor_update_byone();
 void jump_to(int offset);
 unsigned short get_register_value_by_index(unsigned char index);
 void dump_registers();

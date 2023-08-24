@@ -4,6 +4,6 @@
 main:
   mov ah, 0x0e
   mov bx, 0
-  mov al, 'a'
+  mov al, 'b'
   int 0x10
   jmp main

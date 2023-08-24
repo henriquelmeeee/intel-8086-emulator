@@ -510,10 +510,11 @@ namespace Video {
     for(int y = 0; y < VIDEO_ROWS; y++) {
       for(int x = 0; x < VIDEO_COLUMNS; x++) {
         char ch = videoMemory[y*VIDEO_COLUMNS+x];
+        char str[2] = {ch, 0};
 
         SDL_Color textColor = {255, 255, 255, 255};
 
-        SDL_Surface* surface = TTF_RenderText_Solid(font, &ch, textColor);
+        SDL_Surface* surface = TTF_RenderText_Solid(font, str, textColor);
         SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
 
         SDL_Rect dst;
@@ -562,7 +563,7 @@ namespace Video {
 
     TTF_Init();
 
-    TTF_Font* font = TTF_OpenFont("chars.ttf", 24);
+    TTF_Font* font = TTF_OpenFont("chars.ttf", VIDEO_HEIGHT);
     if(font == nullptr) {
       SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
       exit(1);
@@ -738,7 +739,7 @@ extern "C" int main(int argc, char *argv[]) {
 
       std::thread execution_by_clock(wrapper);
       *(virtual_memory_base_address+0xB8000) = 'a';
-      *(virtual_memory_base_address+0xB8000+308) = 'b';
+      *(virtual_memory_base_address+0xB8000+1584) = 'b';
       execution_by_clock.detach();
 
       while(Video::running);

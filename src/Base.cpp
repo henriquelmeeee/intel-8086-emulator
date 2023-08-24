@@ -30,7 +30,7 @@ void _push(short value) {
   *((unsigned short*)virtual_memory_base_address+(regs.ss*16)+regs.sp) = (unsigned short) value;
 }
 
-void cursor_update_byone() {
+/*void cursor_update_byone() {
   // TODO podemos otimizar isso, evitando que façamos subtração em VIDEO_MEMORY_BASE toda hora
   // talvez criando outra variável relacionada ao cursor, mas sem contar o VIDEO_MEMORY_BASE
   // btw o código abaixo (calcular X e Y) é inútil por enquanto
@@ -46,12 +46,12 @@ void cursor_update_byone() {
   cursor_location+=2;
 
   return;
-}
+}*/
 
-void write_char_on_memory(char ch) {
+/*void write_char_on_memory(char ch) {
   *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location) = ch;
   *(virtual_memory_base_address+VIDEO_MEMORY_BASE+cursor_location+1) = 0; // white
-}
+}*/
 
 
 unsigned short get_register_value_by_index(unsigned char index) {

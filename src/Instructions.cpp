@@ -33,6 +33,8 @@ namespace InstructionHandler {
     regs.pc += 2;
   }
   
+  
+
   void _INT(DEFAULT_ARGS) {
     unsigned char interrupt_number = args.imm8_value;
 
@@ -45,8 +47,8 @@ namespace InstructionHandler {
               {
                 std::cout << "int print char\n";
                 _print(args);
-                //write_char_on_memory((char)regs.ax.al);
-                //cursor_update_byone();
+                write_char_on_memory((char)regs.ax.al);
+                cursor_update_byone();
                 break;
               };
 
