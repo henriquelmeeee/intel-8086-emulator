@@ -505,11 +505,11 @@ std::queue<struct Interruption> int_queue;
 namespace Video {
 #define VIDEO_REFRESH_RATE 1000 / 60
 
-  void drawCharsOnRefresh(SDL_Renderer* renderer, const short* videoMemory, TTF_Font* font) {
+  void drawCharsOnRefresh(SDL_Renderer* renderer, const unsigned short* videoMemory, TTF_Font* font) {
     //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
     for(int y = 0; y < VIDEO_ROWS; y++) {
       for(int x = 0; x < VIDEO_COLUMNS; x++) {
-        char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
+        char ch = videoMemory[y*VIDEO_COLUMNS+x];
 
         SDL_Color textColor = {255, 255, 255, 255};
 
@@ -580,7 +580,7 @@ namespace Video {
       }
       SDL_RenderClear(renderer);
 
-      drawCharsOnRefresh(renderer, (const short*)videoMemory, font);
+      drawCharsOnRefresh(renderer, (const unsigned short*)videoMemory, font);
       SDL_RenderPresent(renderer);
       std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
     }
@@ -738,7 +738,7 @@ extern "C" int main(int argc, char *argv[]) {
 
       std::thread execution_by_clock(wrapper);
       *(virtual_memory_base_address+0xB8000) = 'a';
-      *(virtual_memory_base_address+0xB8000+2) = 'b';
+      *(virtual_memory_base_address+0xB8000+308) = 'b';
       execution_by_clock.detach();
 
       while(Video::running);
