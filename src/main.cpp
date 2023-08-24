@@ -139,7 +139,7 @@ typedef unsigned short word;
 
 byte *virtual_memory_base_address;
 
-int main_clock_freq = 30;
+int main_clock_freq = 500;
 
 void infinite_loop() {
     while(true);
@@ -576,6 +576,8 @@ namespace Video {
           running = false;
           break;
         } else if(event.type == SDL_KEYDOWN) {
+          CPU.last_key = event.key.keysym.sym;
+          CPU.keyboard_pendent_interrupt = true;
           int_queue.push({KEYBOARD, new KeyboardInterruption(event.key.keysym.sym)});
         };
       }
@@ -723,7 +725,6 @@ extern "C" int main(int argc, char *argv[]) {
       regs.ds = 0;
       regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
       regs.flags.all = 0;
-      IF = 1;
 
       const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
@@ -738,8 +739,6 @@ extern "C" int main(int argc, char *argv[]) {
       auto wrapper = [&]() {start_execution_by_clock(devices);};
 
       std::thread execution_by_clock(wrapper);
-      *(virtual_memory_base_address+0xB8000) = 'a';
-      *(virtual_memory_base_address+0xB8000+1584) = 'b';
       execution_by_clock.detach();
 
       while(Video::running);

@@ -113,6 +113,19 @@ namespace InstructionHandler {
             CF = 1;
           }
           regs.pc+=2;
+          break;
+        };
+
+      case 0x16:
+        {
+          if(regs.ax.ah == 0) {
+            while(!CPU.keyboard_pendent_interrupt) {}
+            regs.ax.al = CPU.last_key;
+            // TODO colocar o scancode no AH
+            CPU.keyboard_pendent_interrupt = false;
+            regs.pc+=2;
+            break;
+          }
         };
       
       default:

@@ -28,6 +28,9 @@ class Processor {
 
     bool hlt;
 
+    char last_key;
+    bool keyboard_pendent_interrupt;
+
     Processor() {
       this->areInException = false;
       this->hlt = false;
