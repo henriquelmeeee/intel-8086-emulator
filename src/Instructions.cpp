@@ -133,6 +133,11 @@ namespace InstructionHandler {
     return &regs.ax.al; // TODO FIXME temporary
   }
 
+  void _JMP_short(DEFAULT_ARGS) {
+    signed char offset = (signed char) (args.imm8_value & 0xFF);
+    jump_to(offset+2);
+  }
+
   void _ADD_regoraddr_8bits(DEFAULT_ARGS) {
     unsigned char byte_modrm = args.imm8_value;
 
@@ -207,7 +212,15 @@ namespace InstructionHandler {
       regs.pc += 2;
     }
 
+    void _DL_imm8(DEFAULT_ARGS) { // 0xB2
+      regs.dx.dl = args.imm8_value;
+      regs.pc += 2;
+    }
 
+    void _BX_imm16(DEFAULT_ARGS) { // 0xBB
+      regs.bx.bx = args.imm16_value;
+      regs.pc += 3;
+    }
 
     void _AH_imm8(DEFAULT_ARGS) { // 0xB4
       regs.ax.ah = args.imm8_value;

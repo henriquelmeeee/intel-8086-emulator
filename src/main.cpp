@@ -50,13 +50,13 @@ unsigned long iterations = 0;
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
   /* ADD, SUB */
-  {0x04, {2, InstructionHandler::MOV::_AL_imm8, "ADD al, imm8"}},
-  {0x2C, {2, NI, "SUB al, imm8"}}, // not sure!
+  {0x04, {2, NI, "ADD al, imm8 (NI)"}},
+  {0x2C, {2, NI, "SUB al, imm8 (NI)"}}, // not sure!
   
   /* JMPs */
-  {0xE9, {3, NI, "JMP rel16"}},
-  {0xEB, {2, NI, "JMP rel8"}},
-  {0x72, {2, NI, "JB rel8"}},
+  {0xE9, {3, NI, "JMP rel16 (NI)"}},
+  {0xEB, {2, InstructionHandler::_JMP_short, "JMP rel8"}},
+  {0x72, {2, NI, "JB rel8 (NI)"}},
 
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
   
@@ -71,14 +71,18 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   /* MOVs */
   {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
   {0xBC, {3, InstructionHandler::MOV::_SP_imm16, "MOV sp, imm16"}},
+  {0xBB, {3, InstructionHandler::MOV::_BX_imm16, "MOV bx, imm16"}},
   {0xB4, {2, InstructionHandler::MOV::_AH_imm8, "MOV ah, imm8"}},
   {0xB0, {2, InstructionHandler::MOV::_AL_imm8, "MOV al, imm8"}},
   {0xB5, {2, InstructionHandler::MOV::_CH_imm8, "MOV ch, imm8"}},
   {0xB1, {2, InstructionHandler::MOV::_CL_imm8, "MOV cl, imm8"}},
   {0xB6, {2, InstructionHandler::MOV::_DH_imm8, "MOV dh, imm8"}},
   {0xB7, {2, InstructionHandler::MOV::_BH_imm8, "MOV bh, imm8"}},
+  {0xB2, {2, InstructionHandler::MOV::_DL_imm8, "MOV dl, imm8"}},
 
   {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg_or_addr"}},
+
+  {0x31, {2, NI, "XOR reg1, reg2 (NI)"}},
 };
 
 /* Video-related */
@@ -189,27 +193,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
 
       /* MOvs */
 
-      case 0xB0: { // mov al, imm8
-        //regs.ax = (regs.ax&AH) | imm_value;
-        regs.ax.al = imm_value;
-        regs.pc += 2;
-        return {};
-      }
-
-      case 0xB1: { // mov cl, imm8
-        //regs.cx = (regs.cx&AH) | imm_value;
-        regs.cx.ch = imm_value;
-        regs.pc += 2;
-        return {};
-      }
-
-      case 0xB2: { // mov dl, imm8
-        //regs.dx = (regs.dx&AH) | imm_value;
-        regs.dx.dh = imm_value;
-        regs.pc += 2;
-        return {};
-      }
-
       case 0xB3: { // mov bl, imm8
         regs.bx.bl = args.imm8_value;
         regs.pc += 2;
@@ -219,12 +202,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
 
       /* AH (high) movs */
 
-      case 0xB4: { //mov ah, imm 8
-        //regs.ax = (regs.ax&AL) | (imm_value<<8);
-        regs.ax.ah = args.imm8_value;
-        regs.pc += 2;
-        return {};
-      }
       /* Conditional Jumps */
 
       case 0x77: { // ja/jnbe (>=)
@@ -324,17 +301,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         return {};
       }
 
-      case 0xBB: { // mov bx, imm16
-        regs.bx.bx = args.imm16_value;
-        regs.pc += 3;
-        return {};
-      }
-
-      case 0xBC: { // mov sp, imm16
-        regs.sp = imm_value;
-        regs.pc += 3;
-        return {};
-      }
 
       case 0xBD: { // mov bp, imm16
         regs.bp = imm_value;
@@ -364,11 +330,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         return {};
       }
 
-      case 0xEB: { // jmp short in same-segment
-        signed char offset = (signed char) (imm_value & 0xFF);
-        jump_to(offset+2);
-        RETURN;
-      }
 
       case 0x08: { // add ax, imm16
         unsigned short to_sum = imm_value;
@@ -512,7 +473,7 @@ void inline wait_for_user() {
     if(strcmp(user_buffer, "ni") == 0) {
       break;
     } else if (strcmp(user_buffer, "dr") == 0){
-      cout << "Registers:\n";
+      cout << "Registers (big-endian converted):\n";
       dump_registers();
     } else if (strncmp(user_buffer, "rd", 2) == 0) {
       cout << "Address to read: " << address_to_read;
@@ -544,10 +505,10 @@ std::queue<struct Interruption> int_queue;
 namespace Video {
 #define VIDEO_REFRESH_RATE 1000 / 60
 
-  void drawCharsOnRefresh(SDL_Renderer* renderer, const char* videoMemory, TTF_Font* font) {
+  void drawCharsOnRefresh(SDL_Renderer* renderer, const short* videoMemory, TTF_Font* font) {
     //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
-    for(int y = 0; y < VIDEO_ROWS / FONT_HEIGHT; y++) {
-      for(int x = 0; x < VIDEO_COLUMNS / FONT_WIDTH; x++) {
+    for(int y = 0; y < VIDEO_ROWS; y++) {
+      for(int x = 0; x < VIDEO_COLUMNS; x++) {
         char ch = videoMemory[y*(VIDEO_WIDTH/FONT_WIDTH)+x];
 
         SDL_Color textColor = {255, 255, 255, 255};
@@ -565,7 +526,6 @@ namespace Video {
         SDL_FreeSurface(surface);
 
         //cout << ch;
-        // TODO render char in GUI
       }
     }
   }
@@ -620,7 +580,7 @@ namespace Video {
       }
       SDL_RenderClear(renderer);
 
-      drawCharsOnRefresh(renderer, videoMemory, font);
+      drawCharsOnRefresh(renderer, (const short*)videoMemory, font);
       SDL_RenderPresent(renderer);
       std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
     }
@@ -777,6 +737,8 @@ extern "C" int main(int argc, char *argv[]) {
       auto wrapper = [&]() {start_execution_by_clock(devices);};
 
       std::thread execution_by_clock(wrapper);
+      *(virtual_memory_base_address+0xB8000) = 'a';
+      *(virtual_memory_base_address+0xB8000+2) = 'b';
       execution_by_clock.detach();
 
       while(Video::running);

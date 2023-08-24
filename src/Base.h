@@ -35,8 +35,8 @@ class Processor {
 };
 extern Processor CPU;
 
-#define VIDEO_WIDTH 80
-#define VIDEO_HEIGHT 25
+#define VIDEO_WIDTH 640
+#define VIDEO_HEIGHT 480
 #define VIDEO_COLUMNS 80
 #define VIDEO_ROWS 25
 
