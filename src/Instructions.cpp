@@ -196,8 +196,29 @@ namespace InstructionHandler {
 
   namespace MOV {
 
+    void _RM16_R16(DEFAULT_ARGS) { // 0x89
+      // HARD CODED
+      unsigned char ModR_M = args.imm16_value & 0x00FF;
+      unsigned char Mod = (ModR_M & 0xC0) >> 6;
+      unsigned char Reg_Opcode = (ModR_M & 0x38) >> 3;
+      unsigned char RM = ModR_M & 0x07;
+      regs.ax.ax = regs.si;
+
+      regs.pc += 2;
+    }
+
     void _AX_imm16(DEFAULT_ARGS) { // 0xB8
       regs.ax.ax = args.imm16_value;
+      regs.pc += 3;
+    }
+
+    void _SI_imm16(DEFAULT_ARGS) { // 0xBE
+      regs.si = args.imm16_value;
+      regs.pc += 3;
+    }
+
+    void _DI_imm16(DEFAULT_ARGS) { // 0xBF
+      regs.di = args.imm16_value;
       regs.pc += 3;
     }
 
@@ -251,8 +272,14 @@ namespace InstructionHandler {
 
   namespace CALL {
     void _rel16(DEFAULT_ARGS) {
-      std::cout << "called CALL::_rel16\n";
-      regs.pc+=args.imm16_value+2;
+      signed short offset = args.imm16_value;
+      std::cout << "offset: " << offset << "\n";
+      regs.sp -= 2;
+      // Salva o return address
+      unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
+      *sp_ptr = regs.pc+3;
+      // ---
+      regs.pc += offset+3;
       // TODO FIXME fazer a parada da stack e tal
     }
   }

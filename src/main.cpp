@@ -43,6 +43,16 @@ bool STEP_BY_STEP=false;
 
 #include <boost/program_options.hpp>
 
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <fstream>
+
+#include "DebugScreen.h"
+
+std::mutex sdl_mutex;
+
 #define NI InstructionHandler::NotImplemented
 
 unsigned long iterations = 0;
@@ -69,9 +79,14 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
+  {0x89, {2, InstructionHandler::MOV::_RM16_R16, "MOV rm16, r16"}},
+
   {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
   {0xBC, {3, InstructionHandler::MOV::_SP_imm16, "MOV sp, imm16"}},
   {0xBB, {3, InstructionHandler::MOV::_BX_imm16, "MOV bx, imm16"}},
+  {0xBE, {3, InstructionHandler::MOV::_SI_imm16, "MOV si, imm16"}},
+  {0xBF, {3, InstructionHandler::MOV::_DI_imm16, "MOV di, imm16"}},
+
   {0xB4, {2, InstructionHandler::MOV::_AH_imm8, "MOV ah, imm8"}},
   {0xB0, {2, InstructionHandler::MOV::_AL_imm8, "MOV al, imm8"}},
   {0xB5, {2, InstructionHandler::MOV::_CH_imm8, "MOV ch, imm8"}},
@@ -308,17 +323,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         return {};
       }
 
-      case 0xBE: { // mov si, imm16
-        regs.si = imm_value;
-        regs.pc += 3;
-        return {};
-      }
-
-      case 0xBF: { // mov di, imm16
-        regs.di = imm_value;
-        regs.pc += 3;
-        return {};
-      }
        /* Stack-related */
 
       case 0xE8: { // call in same-segment (code-segment)
@@ -534,6 +538,7 @@ namespace Video {
   bool running=true;
 
   void refresh(const char* videoMemory) {
+    std::unique_lock<std::mutex> lock(sdl_mutex);
     if(SDL_Init(SDL_INIT_VIDEO) != 0) {
       std::cerr << "SDL_Init err: " << SDL_GetError() << std::endl;
       running = false;
@@ -568,7 +573,7 @@ namespace Video {
       SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
       exit(1);
     }
-   
+    lock.unlock();
 
     while (running) { // TODO colocar isso numa thread separada pode melhorar a latencia entre o teclado e o emulador
       while(SDL_PollEvent(&event)) {
@@ -675,8 +680,8 @@ extern "C" int main(int argc, char *argv[]) {
       }
 
       system("clear");
-      
-      /*serverSocket = 0*/;
+
+     /*serverSocket = 0*/;
       #ifdef CONNECT_BY_GDB
         if(!StartGDBCommunication())
           return -1;
@@ -740,6 +745,9 @@ extern "C" int main(int argc, char *argv[]) {
 
       std::thread execution_by_clock(wrapper);
       execution_by_clock.detach();
+
+      std::thread debug_screen(DebugScreenThread);
+      debug_screen.detach();
 
       while(Video::running);
 

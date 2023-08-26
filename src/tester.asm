@@ -2,39 +2,29 @@
 [org 0x7c00]
 
 main:
-  mov ah, 0x0e
-  mov bx, 0
-  mov al, 'H'
-  int 0x10
-  mov al, 'e'
-  int 0x10
-  mov al, 'l'
-  int 0x10
-  mov al, 'l'
-  int 0x10
-  mov al, 'o'
-  int 0x10
-  mov al, ''
-  int 0x10
-  mov al, 'W'
-  int 0x10
-  mov al, 'o'
-  int 0x10
-  mov al, 'r'
-  int 0x10
-  mov al, 'l'
-  int 0x10
-  mov al, 'd'
-  int 0x10
-  mov al, '!'
-  int 0x10
-  call user_input
+  mov si, prompt
+  mov di, 0
+  call print
+  hlt
 
-user_input:
-  mov ah, 0
-  int 0x16
+
+print:
+  mov ax, si
+  add ax, di
+  mov si, ax
+
+  mov al, byte [si]
+
+  cmp al, 0
+  je print_end
+  
   mov ah, 0x0e
   int 0x10
-  jmp user_input
+  add di, 1
+  jmp print
 
-db "Oi, tudo bem?"
+  print_end:
+    ret
+
+
+prompt db "Shell> "

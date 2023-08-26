@@ -10,6 +10,9 @@ typedef unsigned short word;
 #include <string>
 #include <map>
 #include <vector>
+#include <mutex>
+
+extern std::mutex sdl_mutex;
 
 template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
     static const char* digits = "0123456789ABCDEF";

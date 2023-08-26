@@ -39,11 +39,14 @@ namespace InstructionHandler {
   void _ADD_regoraddr_8bits(DEFAULT_ARGS);
   void _JMP_short(DEFAULT_ARGS);
   namespace MOV {
+    void _RM16_R16(DEFAULT_ARGS);
     void _AL_imm8(DEFAULT_ARGS);
     void _BH_imm8(DEFAULT_ARGS);
     void _DH_imm8(DEFAULT_ARGS);
     void _CH_imm8(DEFAULT_ARGS);
     void _AX_imm16(DEFAULT_ARGS);
+    void _SI_imm16(DEFAULT_ARGS);
+    void _DI_imm16(DEFAULT_ARGS);
     void _AH_imm8(DEFAULT_ARGS);
     void _SP_imm16(DEFAULT_ARGS);
     void _BX_imm16(DEFAULT_ARGS);
