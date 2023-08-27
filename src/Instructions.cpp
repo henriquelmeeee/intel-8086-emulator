@@ -17,7 +17,15 @@ namespace InstructionHandler {
   void _HLT(DEFAULT_ARGS) {
     CPU.hlt = true;
     regs.pc+=1;
-    return;
+  }
+
+  void _LODSB(DEFAULT_ARGS) {
+    regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
+    if(!DF)
+      regs.si++;
+    else
+      regs.si--;
+    regs.pc += 1;
   }
 
   void _print(DEFAULT_ARGS) {
@@ -205,6 +213,12 @@ namespace InstructionHandler {
       regs.ax.ax = regs.si;
 
       regs.pc += 2;
+    }
+
+    void _R8_RM8(DEFAULT_ARGS) {
+      // HARD CODED
+      regs.ax.al = *(virtual_memory_base_address+regs.si);
+      regs.pc+=2;
     }
 
     void _AX_imm16(DEFAULT_ARGS) { // 0xB8

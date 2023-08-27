@@ -161,6 +161,7 @@ struct Registers {
 #define IF (regs.flags.flags.IF)
 #define OF (regs.flags.flags.OF)
 #define AF (regs.flags.flags.AF)
+#define DF (regs.flags.flags.DF)
 
 enum ExecutionState {
     SUCCESS,

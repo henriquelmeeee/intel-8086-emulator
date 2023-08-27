@@ -79,8 +79,9 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
-  {0x89, {2, InstructionHandler::MOV::_RM16_R16, "MOV rm16, r16"}},
-
+  {0x89, {2, InstructionHandler::MOV::_RM16_R16, "MOV r/m16, r16"}},
+  {0x8A, {2, InstructionHandler::MOV::_R8_RM8, "MOV r8, r/m8"}},
+  
   {0xB8, {3, InstructionHandler::MOV::_AX_imm16, "MOV ax, imm16"}},
   {0xBC, {3, InstructionHandler::MOV::_SP_imm16, "MOV sp, imm16"}},
   {0xBB, {3, InstructionHandler::MOV::_BX_imm16, "MOV bx, imm16"}},
@@ -746,8 +747,8 @@ extern "C" int main(int argc, char *argv[]) {
       std::thread execution_by_clock(wrapper);
       execution_by_clock.detach();
 
-      std::thread debug_screen(DebugScreenThread);
-      debug_screen.detach();
+      //std::thread debug_screen(DebugScreenThread);
+      //debug_screen.detach();
 
       while(Video::running);
 

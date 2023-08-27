@@ -33,6 +33,7 @@ struct InstructionInfo {
 namespace InstructionHandler {
   void _NOP(DEFAULT_ARGS);
   void _HLT(DEFAULT_ARGS);
+  void _LODSB(DEFAULT_ARGS);
   void _INT(DEFAULT_ARGS);
   void NotImplemented(DEFAULT_ARGS);
   void _IN_al_dx(DEFAULT_ARGS);
@@ -40,6 +41,7 @@ namespace InstructionHandler {
   void _JMP_short(DEFAULT_ARGS);
   namespace MOV {
     void _RM16_R16(DEFAULT_ARGS);
+    void _R8_RM8(DEFAULT_ARGS);
     void _AL_imm8(DEFAULT_ARGS);
     void _BH_imm8(DEFAULT_ARGS);
     void _DH_imm8(DEFAULT_ARGS);
