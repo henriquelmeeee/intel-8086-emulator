@@ -4,9 +4,23 @@
 #include <string>
 #include <map>
 
+// TODO
+// o registrador de código é o padrão usado para cálculo de offset
+// se o programa quiser usar baseado no registrador de dados
+// (regs.ds)
+// ele vai precisar explicitar isso, e então o OPCODE mudará
+// mas não lidarei com isso no momento
+
 #include "Instructions.h"
 #include "Base.h"
 #include "Utils.h"
+
+void __set_flags(signed short value) {
+  ZF = (value == 0);
+  SF = (value < 0);
+  // OF needs to be manually updated
+  //PF = check_parity(value & 0xFF);
+}
 
 namespace InstructionHandler {
   void _NOP(DEFAULT_ARGS) {
@@ -20,12 +34,18 @@ namespace InstructionHandler {
   }
 
   void _LODSB(DEFAULT_ARGS) {
+    std::cout << "DS flag: " << regs.ds << "; *16: " << regs.ds*16 << "\n";
     regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
     if(!DF)
       regs.si++;
     else
       regs.si--;
     regs.pc += 1;
+  }
+
+  void _RET(DEFAULT_ARGS) {
+    regs.pc = *((unsigned short*)(virtual_memory_base_address+(regs.ss << 4)+regs.sp));
+    regs.sp -= 2;
   }
 
   void _print(DEFAULT_ARGS) {
@@ -217,7 +237,7 @@ namespace InstructionHandler {
 
     void _R8_RM8(DEFAULT_ARGS) {
       // HARD CODED
-      regs.ax.al = *(virtual_memory_base_address+regs.si);
+      regs.ax.al = *(((unsigned char*)virtual_memory_base_address)+(regs.ds*16)+regs.si);
       regs.pc+=2;
     }
 
@@ -227,6 +247,7 @@ namespace InstructionHandler {
     }
 
     void _SI_imm16(DEFAULT_ARGS) { // 0xBE
+      std::cout << "MOV si, " << args.imm16_value << "\n";
       regs.si = args.imm16_value;
       regs.pc += 3;
     }
@@ -297,4 +318,29 @@ namespace InstructionHandler {
       // TODO FIXME fazer a parada da stack e tal
     }
   }
+
+  namespace CMP {
+    void _al_imm8(DEFAULT_ARGS) { // 0x3C
+      signed char value_to_compare = args.imm8_value;
+      signed char result = regs.ax.al - value_to_compare;
+      // TODO acho que nem todas flags estão corretas, algumas devem estar faltando
+      if(result == 0) {
+        std::cout << "CMP resultou em TRUE (valor ficou em zero)\n";
+      }
+      __set_flags(result);
+      //else if (result < 0) TODO!
+      regs.pc += 2;
+
+    }
+  
+  }
+
+  void _JMP_if_equals(DEFAULT_ARGS) {
+    if(ZF == 0) {
+      regs.pc += (signed char)args.imm8_value;
+      std::cout << "JUMP IF EQUALS: IS EQUALS!\n";
+    }
+    regs.pc += 2;
+  }
+
 }

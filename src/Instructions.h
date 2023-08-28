@@ -34,6 +34,7 @@ namespace InstructionHandler {
   void _NOP(DEFAULT_ARGS);
   void _HLT(DEFAULT_ARGS);
   void _LODSB(DEFAULT_ARGS);
+  void _RET(DEFAULT_ARGS);
   void _INT(DEFAULT_ARGS);
   void NotImplemented(DEFAULT_ARGS);
   void _IN_al_dx(DEFAULT_ARGS);
@@ -58,6 +59,10 @@ namespace InstructionHandler {
   namespace CALL {
     void _rel16(DEFAULT_ARGS);
   }
+  namespace CMP {
+    void _al_imm8(DEFAULT_ARGS);
+  }
+  void _JMP_if_equals(DEFAULT_ARGS);
 }
 
 // One-byte instructions

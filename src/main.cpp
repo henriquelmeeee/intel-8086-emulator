@@ -67,6 +67,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE9, {3, NI, "JMP rel16 (NI)"}},
   {0xEB, {2, InstructionHandler::_JMP_short, "JMP rel8"}},
   {0x72, {2, NI, "JB rel8 (NI)"}},
+  {0x74, {2, InstructionHandler::_JMP_if_equals, "JE rel8"}},
 
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
   
@@ -75,7 +76,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
 
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
-  
+  {0xAC, {1, InstructionHandler::_LODSB, "LODSB"}},
   {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
@@ -97,6 +98,9 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xB2, {2, InstructionHandler::MOV::_DL_imm8, "MOV dl, imm8"}},
 
   {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg_or_addr"}},
+
+  {0x3C, {2, InstructionHandler::CMP::_al_imm8, "CMP al, imm8"}},
+  {0xC3, {1, InstructionHandler::_RET, "RET"}},
 
   {0x31, {2, NI, "XOR reg1, reg2 (NI)"}},
 };
@@ -155,7 +159,7 @@ typedef unsigned short word;
 
 byte *virtual_memory_base_address;
 
-int main_clock_freq = 500;
+int main_clock_freq = 4770000;
 
 void infinite_loop() {
     while(true);
@@ -728,7 +732,7 @@ extern "C" int main(int argc, char *argv[]) {
       regs.pc = (unsigned short)0x7c00;
       regs.cs = 0;
       regs.ss = 0;
-      regs.ds = 0;
+      regs.ds = 0x7c0; // O PADRÃO SERIA 0X00
       regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
       regs.flags.all = 0;
 
