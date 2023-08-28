@@ -573,7 +573,7 @@ namespace Video {
 
     TTF_Init();
 
-    TTF_Font* font = TTF_OpenFont("chars.ttf", VIDEO_HEIGHT);
+    TTF_Font* font = TTF_OpenFont("fonts/VGA.ttf", VIDEO_HEIGHT);
     if(font == nullptr) {
       SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
       exit(1);

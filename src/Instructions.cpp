@@ -336,7 +336,7 @@ namespace InstructionHandler {
   }
 
   void _JMP_if_equals(DEFAULT_ARGS) {
-    if(ZF == 0) {
+    if(ZF == 1) {
       regs.pc += (signed char)args.imm8_value;
       std::cout << "JUMP IF EQUALS: IS EQUALS!\n";
     }

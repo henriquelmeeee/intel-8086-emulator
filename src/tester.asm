@@ -15,22 +15,40 @@ print:
   mov ah, 0x0e
   lodsb
   cmp al, 0
-  jz print_end
+  je print_end
   int 0x10
   jmp print
   print_end:
     ret
 
+line_break:
+  mov ah, 0x0e
+  mov al, 0x0d
+  int 0x10
+
+  mov al, 0x0a
+  int 0x10
+
+  ret
+  hlt
+
 wait_user_input:
   mov ah, 0
   int 0x16
-  cmp al, 0
+  cmp al, 0x0
   je just_exit
-  mov ah, 0x0e
-  int 0x10
-  jmp wait_user_input
+  cmp al, 0x0a
+  je line_break_and_ret
+  __ret:
+    mov ah, 0x0e
+    int 0x10
+    jmp wait_user_input
+
+  line_break_and_ret:
+    call line_break
+    jmp __ret
 
 just_exit:
   hlt
 
-prompt db "Shell> ", 0
+prompt db "Shell> ",0
