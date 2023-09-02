@@ -57,6 +57,11 @@ std::mutex sdl_mutex;
 
 unsigned long iterations = 0;
 
+void CLI(InstructionArgs args){
+  IF = 0;
+  regs.pc += 1;
+}
+
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xE8, {3, InstructionHandler::CALL::_rel16, "CALL rel16"}},
   /* ADD, SUB */
@@ -68,15 +73,17 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xEB, {2, InstructionHandler::_JMP_short, "JMP rel8"}},
   {0x72, {2, NI, "JB rel8 (NI)"}},
   {0x74, {2, InstructionHandler::_JMP_if_equals, "JE rel8"}},
+  {0x07, {1, NI, "POP es (NI)"}},
 
   {0x90, {1, InstructionHandler::_NOP, "NOP"}},
   
   /* IN and OUT */
-  {0xE4, {2, NI, "IN al, imm8"}},
+  {0xE4, {2, NI, "IN al, imm8 (NI)"}},
   {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
 
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
   {0xAC, {1, InstructionHandler::_LODSB, "LODSB"}},
+  {0xFA, {1, CLI, "CLI"}},
   {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
@@ -97,12 +104,15 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xB7, {2, InstructionHandler::MOV::_BH_imm8, "MOV bh, imm8"}},
   {0xB2, {2, InstructionHandler::MOV::_DL_imm8, "MOV dl, imm8"}},
 
+  {0x8E, {3, NI, "MOV Sreg, r/m16 (NI)"}},
+
   {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg_or_addr"}},
 
   {0x3C, {2, InstructionHandler::CMP::_al_imm8, "CMP al, imm8"}},
   {0xC3, {1, InstructionHandler::_RET, "RET"}},
 
   {0x31, {2, NI, "XOR reg1, reg2 (NI)"}},
+  {0x33, {2, NI, "XOR reg2, reg1 (NI)"}},
 };
 
 /* Video-related */
