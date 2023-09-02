@@ -230,8 +230,23 @@ namespace InstructionHandler {
       unsigned char Mod = (ModR_M & 0xC0) >> 6;
       unsigned char Reg_Opcode = (ModR_M & 0x38) >> 3;
       unsigned char RM = ModR_M & 0x07;
-      regs.ax.ax = regs.si;
+      
+      unsigned short* dest;
+      unsigned short* src = get_register_by_index(Reg_Opcode);
 
+      if(Mod == 3) {
+        dest = get_register_by_index(RM);
+        *dest = *src;
+        regs.pc += 2;
+        return;
+      } else if (Mod == 0) {
+        // FIXME mov [bx], sp not working
+        unsigned short address = get_register_value_by_index(RM);
+        std::cout << "mov [" << address << "], " << *src << std::endl;
+        *(virtual_memory_base_address+address) = *src;
+        regs.pc += 2;
+        return;
+      }
       regs.pc += 2;
     }
 

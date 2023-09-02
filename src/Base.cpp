@@ -54,9 +54,33 @@ void _push(short value) {
 }*/
 
 
-unsigned short get_register_value_by_index(unsigned char index) {
+unsigned short* get_register_by_index(unsigned char index) {
   // TODO get register by index in "value_to_add", a menos que seja algo como add [imm16], value
-  return 1;
+  switch(index) {
+    case 0:
+      return reinterpret_cast<unsigned short*>(&regs.ax);
+    case 1:
+      return reinterpret_cast<unsigned short*>(&regs.cx);
+    case 2:
+      return reinterpret_cast<unsigned short*>(&regs.dx);
+    case 3:
+      return reinterpret_cast<unsigned short*>(&regs.bx);
+    case 4:
+      return &regs.sp;
+    case 5:
+      return &regs.bp;
+    case 6:
+      return &regs.si;
+    case 7:
+      return &regs.di;
+    default:
+      return &regs.di;
+      // TODO FIXME throw CPU fault invalid opcode
+  }
+}
+
+unsigned short get_register_value_by_index(unsigned char index) {
+  return *get_register_by_index(index);
 }
 
 void jump_to(int offset) {

@@ -4,6 +4,8 @@
 main:
   ;mov ax, 0x7c0
   ;mov ds, ax
+  mov bx, 5
+  mov [bx], sp
   mov si, prompt
   call print
   main_loop:
@@ -28,7 +30,8 @@ line_break:
 
   mov al, 0x0a
   int 0x10
-
+  mov si, prompt
+  call print
   ret
   hlt
 

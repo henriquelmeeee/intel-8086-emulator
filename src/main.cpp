@@ -233,15 +233,6 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         RETURN;
       }
       
-      case 0x74: { // je (==)
-        if(ZF == 1) {
-          jump_to(offset_1byte+2);
-          RETURN;
-        }
-        regs.pc+=2;
-        RETURN;
-      }
-
       case 0x75: { // jne (!=)
         if(ZF == 0) {
           jump_to(offset_1byte+2);
