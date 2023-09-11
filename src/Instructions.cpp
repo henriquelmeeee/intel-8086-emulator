@@ -221,7 +221,6 @@ namespace InstructionHandler {
 
       __set_flags(result);
       // TODO check OF
-      return;
 
     } else {
       std::cout << "MOD not implemented yet\n";
