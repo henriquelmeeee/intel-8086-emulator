@@ -173,6 +173,17 @@ namespace InstructionHandler {
 
   
   unsigned char* bits8_find_reg_by_index(unsigned char index) {
+    switch(index) {
+      case 0: return &(regs.ax.al);
+      case 1: return &(regs.cx.cl);
+      case 2: return &(regs.dx.dl);
+      case 3: return &(regs.bx.bl);
+      case 4: return &(regs.ax.ah);
+      case 5: return &(regs.cx.ch);
+      case 6: return &(regs.dx.dh);
+      case 7: return &(regs.bx.bh);
+      default: return &(regs.ax.al); // TODO cpu fault invalid opcode
+    }
     return &regs.ax.al; // TODO FIXME temporary
   }
 
@@ -183,19 +194,23 @@ namespace InstructionHandler {
 
   void _ADD_regoraddr_8bits(DEFAULT_ARGS) {
     unsigned char byte_modrm = args.imm8_value;
+    std::cout << "args.imm8_value: " << (unsigned short)args.imm8_value << std::endl;
 
     unsigned char first_operand_is_reg_or_memoryref = (byte_modrm) & 0xC0; // MOD
     unsigned char reg_or_opcode_extension = ((byte_modrm) & 0x38) >> 3; // DEST REG
     unsigned char second_operand_reg_or_addrmode = (byte_modrm) & 0x07; // ORIG REG 
     
-    unsigned char Mod = first_operand_is_reg_or_memoryref;
+    unsigned char Mod = first_operand_is_reg_or_memoryref >> 6;
     unsigned char Reg_or_Opcode = reg_or_opcode_extension;
     unsigned char R_M = second_operand_reg_or_addrmode;
-
-    if(Mod == 0b00000011) {
+    std::cout << "Mod: " << (unsigned short)Mod << std::endl;
+    if(Mod == 0b11) {
       // TWO 8-bit REGISTERS
-      unsigned char dest_reg_index = (reg_or_opcode_extension >> 3) & 0x07;
+      std::cout << "add reg, reg\n";
+      unsigned char dest_reg_index = (reg_or_opcode_extension);
       unsigned char src_reg_index = second_operand_reg_or_addrmode & 0x07;
+
+      std::cout << "dest_reg_index: " << (unsigned short)dest_reg_index << " src_reg_index: " << (unsigned short) src_reg_index << std::endl;
 
       unsigned char* dest_reg = bits8_find_reg_by_index(dest_reg_index);
       unsigned char* src_reg = bits8_find_reg_by_index(src_reg_index);
@@ -204,10 +219,9 @@ namespace InstructionHandler {
       
       unsigned char result = *(dest_reg);
 
-      if(result == 0)
-        ZF = 1;
-      // TODO continue this
-
+      __set_flags(result);
+      // TODO check OF
+      return;
 
     } else {
       std::cout << "MOD not implemented yet\n";
@@ -215,6 +229,11 @@ namespace InstructionHandler {
 
 
     regs.pc += 3;
+  }
+
+  void _ADD_regoraddr_16bits(DEFAULT_ARGS) {
+    std::cout << "add regoraddr 16 bits not implemented yet\n";
+    while(true);
   }
 
   void _IN_al_dx(DEFAULT_ARGS) {

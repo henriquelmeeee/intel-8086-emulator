@@ -1,2 +1,2 @@
 #./main --master source --breakpoint
-./main --master MS-DOS/msdos.img --breakpoint
+./main --master source --breakpoint

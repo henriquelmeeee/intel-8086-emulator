@@ -6,6 +6,7 @@ main:
   ;mov ds, ax
   mov bx, 5
   mov [bx], sp
+  add bl, bl
   mov si, prompt
   call print
   main_loop:

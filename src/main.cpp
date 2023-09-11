@@ -106,7 +106,8 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
 
   {0x8E, {3, NI, "MOV Sreg, r/m16 (NI)"}},
 
-  {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg_or_addr"}},
+  {0x00, {3, InstructionHandler::_ADD_regoraddr_8bits, "ADD reg_or_addr, reg"}},
+  {0x01, {3, InstructionHandler::_ADD_regoraddr_16bits, "ADD reg_or_addr, reg"}},
 
   {0x3C, {2, InstructionHandler::CMP::_al_imm8, "CMP al, imm8"}},
   {0xC3, {1, InstructionHandler::_RET, "RET"}},

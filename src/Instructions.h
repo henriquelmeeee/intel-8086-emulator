@@ -39,6 +39,7 @@ namespace InstructionHandler {
   void NotImplemented(DEFAULT_ARGS);
   void _IN_al_dx(DEFAULT_ARGS);
   void _ADD_regoraddr_8bits(DEFAULT_ARGS);
+  void _ADD_regoraddr_16bits(DEFAULT_ARGS);
   void _JMP_short(DEFAULT_ARGS);
   namespace MOV {
     void _RM16_R16(DEFAULT_ARGS);
