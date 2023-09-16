@@ -15,11 +15,23 @@
 #include "Base.h"
 #include "Utils.h"
 
+unsigned short current_memory_addr = 0;
+
 void __set_flags(signed short value) {
   ZF = (value == 0);
   SF = (value < 0);
   // OF needs to be manually updated
   //PF = check_parity(value & 0xFF);
+}
+
+inline unsigned long __read_word(unsigned short address, unsigned char segment) {
+  current_memory_addr = address;
+  return *((unsigned short*)(virtual_memory_base_address+(segment)+address));
+}
+
+inline unsigned char __read_byte(unsigned short address, unsigned char segment) {
+  current_memory_addr = address;
+  return *((unsigned  char*)(virtual_memory_base_address+(segment)+address));
 }
 
 namespace InstructionHandler {
@@ -35,7 +47,8 @@ namespace InstructionHandler {
 
   void _LODSB(DEFAULT_ARGS) {
     std::cout << "DS flag: " << regs.ds << "; *16: " << regs.ds*16 << "\n";
-    regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
+    regs.ax.al = __read_word(regs.si, regs.ds*16);
+    //regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
     if(!DF)
       regs.si++;
     else
@@ -44,7 +57,8 @@ namespace InstructionHandler {
   }
 
   void _RET(DEFAULT_ARGS) {
-    regs.pc = *((unsigned short*)(virtual_memory_base_address+(regs.ss << 4)+regs.sp));
+    regs.pc = __read_word(regs.sp, regs.ss << 4);
+    //regs.pc = *((unsigned short*)(virtual_memory_base_address+(regs.ss << 4)+regs.sp));
     regs.sp -= 2;
   }
 
@@ -220,6 +234,8 @@ namespace InstructionHandler {
       unsigned char result = *(dest_reg);
 
       __set_flags(result);
+      regs.pc+=2;
+      return;
       // TODO check OF
 
     } else {
@@ -227,7 +243,6 @@ namespace InstructionHandler {
     }
 
 
-    regs.pc += 3;
   }
 
   void _ADD_regoraddr_16bits(DEFAULT_ARGS) {
@@ -270,6 +285,7 @@ namespace InstructionHandler {
 
     void _R8_RM8(DEFAULT_ARGS) {
       // HARD CODED
+      //regs.ax.al = __read_byte(regs.si, regs.ds*16);
       regs.ax.al = *(((unsigned char*)virtual_memory_base_address)+(regs.ds*16)+regs.si);
       regs.pc+=2;
     }

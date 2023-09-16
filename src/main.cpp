@@ -9,13 +9,15 @@
 // TODO FIXME colocar o Device::devices para Instructions.cpp poder usar
 // Fazer Base.cpp com as funcs principais tipo write_char_to_video_memory algo assim
 
-
+#define OLC_PGE_APPLICATION
+#include "olcPixelGameEngine.h"
 
 #include <iostream>
 #include <queue>
 #include <fstream>
 
 bool STEP_BY_STEP=false;
+bool should_exit = false;
 
 // TODO FIXME colocar isso num .h pra todos arquivos poderem usar
 // inclusive o Instructions.h
@@ -170,7 +172,7 @@ typedef unsigned short word;
 
 byte *virtual_memory_base_address;
 
-int main_clock_freq = 4770000;
+int main_clock_freq = 3; //4770000;
 
 void infinite_loop() {
     while(true);
@@ -604,6 +606,7 @@ namespace Video {
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
+    should_exit = true;
   }
 }
 
@@ -753,14 +756,14 @@ extern "C" int main(int argc, char *argv[]) {
       std::thread execution_by_clock(wrapper);
       execution_by_clock.detach();
 
-      //std::thread debug_screen(DebugScreenThread);
-      //debug_screen.detach();
+      std::thread debug_screen(DebugScreenThread);
+      debug_screen.detach();
 
       while(Video::running);
 
       cout << "Programa finalizado\n";
       std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
-
+      
       return 0;
     return 0;
 }

@@ -1,5 +1,6 @@
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
+#define OCL_PGE_APPLICATION
+#include "olcPixelGameEngine.h"
+
 #include <iostream>
 #include <stdlib.h>
 #include <stdio.h>
@@ -8,60 +9,96 @@
 
 #include "Base.h"
 #include "Utils.h"
+#include "Instructions.h"
 
-void DebugScreenThread() {
-  //SDL_Init(SDL_INIT_VIDEO);
-  //TTF_Init();
-  std::unique_lock<std::mutex> lock(sdl_mutex);
+template <typename I> std::string _itoh(I w, size_t hex_len = sizeof(I)<<1) {
+    static const char* digits = "0123456789ABCDEF";
+    std::string rc(hex_len,'0');
+    for (size_t i=0, j=(hex_len-1)*4 ; i<hex_len; ++i,j-=4)
+        rc[i] = digits[(w>>j) & 0x0f];
+    return rc;
+}
 
-  SDL_Window *window = SDL_CreateWindow("Debug Terminal", 100, 100, 640, 480, 0);
-  if(window == nullptr)
-    std::cout << "WINDOW NULLPTR\n";
-  SDL_Renderer *renderer = SDL_CreateRenderer(window, -1, 0);
-  if(renderer == nullptr)
-    std::cout << "RENDERER NULLPTR\n";
+class Screen : public olc::PixelGameEngine {
 
-  TTF_Font* font = TTF_OpenFont("fonts/arial.ttf", 4);
-  SDL_Color color = {255, 255, 255};
-
-  SDL_Event event; 
-
-  SDL_Rect destRect;
-  destRect.x = 10;
-  destRect.y = 10;
-  destRect.w = 300;
-  destRect.h = 100;
-
-  lock.unlock();
-  while(true) {
-    while(SDL_PollEvent(&event)) {
-      if(event.type == SDL_QUIT)
-        break;
+  public:
+    Screen() {
+      this->sAppName = "8086 emulator stats";
     }
 
-    std::stringstream ss;
-    ss << "Registers: \n";
+    bool OnUserCreate() override {
+      return true;
+    }
 
-    std::string text = ss.str();
+    bool OnUserUpdate(float fElapsedTime) override {
+      Clear(olc::BLUE);
 
-    SDL_Surface *surface = TTF_RenderText_Solid(font, text.c_str(), color);
-    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, surface);
+      int line = 10;
 
-    SDL_RenderClear(renderer);
-    SDL_RenderCopy(renderer, texture, NULL, &destRect);
-    SDL_RenderPresent(renderer);
+      unsigned short _pc = regs.pc;
+      int column = 2;
 
-    SDL_FreeSurface(surface);
-    SDL_DestroyTexture(texture);
+      // Primeiras duas linhas
+      DrawString(column, line, "PC: ", olc::WHITE, 1);
+      DrawString(column+38, line, (_itoh(_pc)), olc::WHITE, 1);
+      line+=10;
+      DrawString(column, line, "AX: ", olc::WHITE, 1);
+      DrawString(column+38, line, _itoh(regs.ax.ax), olc::WHITE, 1);
+      // Duas colunas adicionais das duas linhas
+      column+=90;
+      line = 10;
+      DrawString(column, line, "SP: ", olc::WHITE, 1);
+      DrawString(column+38, line, _itoh(regs.sp), olc::WHITE, 1);
+      DrawString(column, line+10, "BP: ", olc::WHITE, 1);
+      DrawString(column+38, line+10, _itoh(regs.bp), olc::WHITE, 1);
 
-    SDL_Delay(16);
-  }
+      line+=10;
+      column = 2;
 
-  SDL_DestroyRenderer(renderer);
-  SDL_DestroyWindow(window);
 
-  TTF_CloseFont(font);
 
-  //TTF_Quit();
-  //SDL_Quit();
+
+
+      line+=20;
+      DrawString(2, line, "Memory dump (PC-based):", olc::WHITE, 1);
+      line+=10;
+      
+      column = 52;
+
+      for(int a = 0; a<4; a++) {
+        unsigned short addr = _pc+a+10;
+        DrawString(2, line, _itoh(addr), olc::WHITE, 1);
+        for(int b = 0; b<5; b++) {
+          unsigned short addr_content = *(virtual_memory_base_address+addr+b);
+          DrawString(column, line, _itoh(addr_content), olc::WHITE, 1);
+          column += 40;
+        }
+        line+=10;
+        column = 52;
+      }
+
+      line+=10;
+      DrawString(2, line, "Reading address:", olc::WHITE, 1);
+      line+=10;
+      DrawString(2, line, _itoh(current_memory_addr), olc::WHITE, 1);
+
+      
+      //DrawString(10, 10, "test", olc::WHITE, 2);
+
+      return true;
+
+    }
+
+    bool OnUserDestroy() override {
+      exit(0);
+    }
+};
+
+void DebugScreenThread() {
+  Screen screen;
+  while(!should_exit){
+  if(screen.Construct(256, 240, 4, 4)) {
+    screen.Start();
+  }}
+  return;
 }
