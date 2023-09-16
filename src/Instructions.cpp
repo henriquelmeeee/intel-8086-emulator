@@ -47,8 +47,8 @@ namespace InstructionHandler {
 
   void _LODSB(DEFAULT_ARGS) {
     std::cout << "DS flag: " << regs.ds << "; *16: " << regs.ds*16 << "\n";
-    regs.ax.al = __read_word(regs.si, regs.ds*16);
-    //regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
+    //regs.ax.al = __read_word(regs.si, regs.ds*16);
+    regs.ax.al = *(virtual_memory_base_address+(regs.ds*16)+regs.si);
     if(!DF)
       regs.si++;
     else

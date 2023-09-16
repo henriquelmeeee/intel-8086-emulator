@@ -33,25 +33,30 @@ class Screen : public olc::PixelGameEngine {
     bool OnUserUpdate(float fElapsedTime) override {
       Clear(olc::BLUE);
 
-      int line = 10;
+      int line = 3;
 
       unsigned short _pc = regs.pc;
       int column = 2;
 
-      // Primeiras duas linhas
+      // Primeiras três linhas
       DrawString(column, line, "PC: ", olc::WHITE, 1);
       DrawString(column+38, line, (_itoh(_pc)), olc::WHITE, 1);
       line+=10;
       DrawString(column, line, "AX: ", olc::WHITE, 1);
       DrawString(column+38, line, _itoh(regs.ax.ax), olc::WHITE, 1);
-      // Duas colunas adicionais das duas linhas
+      line+=10;
+      DrawString(column, line, "CX: ", olc::WHITE, 1);
+      DrawString(column+38, line, _itoh(regs.cx.cx), olc::WHITE, 1);
+
+      // Três colunas adicionais das três linhas
       column+=90;
-      line = 10;
+      line = 3;
       DrawString(column, line, "SP: ", olc::WHITE, 1);
       DrawString(column+38, line, _itoh(regs.sp), olc::WHITE, 1);
       DrawString(column, line+10, "BP: ", olc::WHITE, 1);
       DrawString(column+38, line+10, _itoh(regs.bp), olc::WHITE, 1);
-
+      DrawString(column, line+20, "DX: ", olc::WHITE, 1);
+      DrawString(column+38, line+20, _itoh(regs.dx.dx), olc::WHITE, 1);
       line+=10;
       column = 2;
 
