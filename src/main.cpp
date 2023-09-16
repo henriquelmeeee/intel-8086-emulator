@@ -758,8 +758,8 @@ extern "C" int main(int argc, char *argv[]) {
 
       std::thread debug_screen(DebugScreenThread);
       debug_screen.detach();
-
-      while(Video::running);
+      
+      while(!should_exit);
 
       cout << "Programa finalizado\n";
       std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao

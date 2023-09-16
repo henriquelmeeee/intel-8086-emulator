@@ -27,7 +27,7 @@ class Screen : public olc::PixelGameEngine {
     float lastKeyPressTime = 0.0f;
     float lastKeyHoldTime = 0.0f;
     float keyPressDelay = 0.2f;
-    float keyHoldDelay = 0.05f;
+    float keyHoldDelay = 0.03f;
 
     Screen() {
       this->sAppName = "8086 emulator stats";
@@ -48,7 +48,7 @@ class Screen : public olc::PixelGameEngine {
             } else if (GetKey(olc::Key::DOWN).bReleased) {
               base_addr -= 1;
             }
-              lastKeyPressTime = 0.0f;
+            lastKeyPressTime = 0.0f;
           }
         } else if (GetKey(olc::Key::UP).bHeld || GetKey(olc::Key::DOWN).bHeld) {
           if (lastKeyHoldTime >= keyHoldDelay) {
@@ -57,8 +57,12 @@ class Screen : public olc::PixelGameEngine {
             } else if (GetKey(olc::Key::DOWN).bHeld) {
               base_addr -= 1;
             }
-              lastKeyHoldTime = 0.0f;
+            lastKeyHoldTime = 0.0f;
           }
+        } else if (GetKey(olc::Key::W).bHeld) {
+          base_addr+=1;
+        } else if (GetKey(olc::Key::S).bHeld) {
+          base_addr-=1;
         }
       }
       Clear(olc::BLUE);
