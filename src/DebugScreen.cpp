@@ -19,9 +19,16 @@ template <typename I> std::string _itoh(I w, size_t hex_len = sizeof(I)<<1) {
     return rc;
 }
 
+unsigned short base_addr = 0;
+
 class Screen : public olc::PixelGameEngine {
 
   public:
+    float lastKeyPressTime = 0.0f;
+    float lastKeyHoldTime = 0.0f;
+    float keyPressDelay = 0.2f;
+    float keyHoldDelay = 0.05f;
+
     Screen() {
       this->sAppName = "8086 emulator stats";
     }
@@ -31,6 +38,29 @@ class Screen : public olc::PixelGameEngine {
     }
 
     bool OnUserUpdate(float fElapsedTime) override {
+      lastKeyPressTime += fElapsedTime;
+      lastKeyHoldTime += fElapsedTime;
+      if (IsFocused()) {
+        if (GetKey(olc::Key::UP).bReleased || GetKey(olc::Key::DOWN).bReleased) {
+          if (lastKeyPressTime >= keyPressDelay) {
+            if (GetKey(olc::Key::UP).bReleased) {
+              base_addr += 1;
+            } else if (GetKey(olc::Key::DOWN).bReleased) {
+              base_addr -= 1;
+            }
+              lastKeyPressTime = 0.0f;
+          }
+        } else if (GetKey(olc::Key::UP).bHeld || GetKey(olc::Key::DOWN).bHeld) {
+          if (lastKeyHoldTime >= keyHoldDelay) {
+            if (GetKey(olc::Key::UP).bHeld) {
+              base_addr += 1;
+            } else if (GetKey(olc::Key::DOWN).bHeld) {
+              base_addr -= 1;
+            }
+              lastKeyHoldTime = 0.0f;
+          }
+        }
+      }
       Clear(olc::BLUE);
 
       int line = 3;
@@ -62,22 +92,21 @@ class Screen : public olc::PixelGameEngine {
 
 
 
-
-
-      line+=20;
-      DrawString(2, line, "Memory dump (PC-based):", olc::WHITE, 1);
+      line+=30;
+      DrawString(2, line, "Memory dump:", olc::WHITE, 1);
       line+=10;
       
       column = 52;
-
+      unsigned short _base_addr = base_addr;
       for(int a = 0; a<4; a++) {
-        unsigned short addr = _pc+a+10;
+        unsigned short addr = _base_addr+a;
         DrawString(2, line, _itoh(addr), olc::WHITE, 1);
         for(int b = 0; b<5; b++) {
           unsigned short addr_content = *(virtual_memory_base_address+addr+b);
           DrawString(column, line, _itoh(addr_content), olc::WHITE, 1);
           column += 40;
         }
+        _base_addr+=5;
         line+=10;
         column = 52;
       }
