@@ -172,7 +172,7 @@ typedef unsigned short word;
 
 byte *virtual_memory_base_address;
 
-int main_clock_freq = 3; //4770000;
+int main_clock_freq = 30; //4770000;
 
 void infinite_loop() {
     while(true);
@@ -590,9 +590,11 @@ namespace Video {
           running = false;
           break;
         } else if(event.type == SDL_KEYDOWN) {
-          CPU.last_key = event.key.keysym.sym;
+          unsigned char key = event.key.keysym.sym;
+          // TODO tratamento especial para teclas de controle (modificação do are_shift_pressed, etc)
+          CPU.last_key = key;
           CPU.keyboard_pendent_interrupt = true;
-          int_queue.push({KEYBOARD, new KeyboardInterruption(event.key.keysym.sym)});
+          int_queue.push({KEYBOARD, new KeyboardInterruption(key)});
         };
       }
       SDL_RenderClear(renderer);

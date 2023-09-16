@@ -165,7 +165,28 @@ namespace InstructionHandler {
             regs.ax.al = CPU.last_key;
             // TODO colocar o scancode no AH
             CPU.keyboard_pendent_interrupt = false;
+            // TODO remover a interrupção da fila também
+            // TODO modificar o retorno dependendo do estado das teclas de controle
             regs.pc+=2;
+            break;
+          } else if(regs.ax.ah == 1) {
+            if(CPU.keyboard_pendent_interrupt) {
+              ZF = 0;
+              regs.ax.al = CPU.last_key;
+              // TODO scancode em AH
+            } else {
+              ZF = 1;
+            }
+            break;
+            // TODO será q o int da BIOS pro teclado tira o CPU.keyboard_pendent_interrupt? tira a key da fila tbm?
+          } else if(regs.ax.ah == 2) {
+            // TODO checar estado das teclas SHIFT, CTRL, ALT
+          } else if(regs.ax.ah == 3) {
+            // TODO ?
+          } else if(regs.ax.ah == 4) {/*TODO*/}
+          else if(regs.ax.ah == 5){
+            CPU.last_key = regs.cx.cl;
+            //int_queue.push({KEYBOARD, new KeyboardInterruption(CPU.last_key)});
             break;
           }
         };
@@ -206,6 +227,42 @@ namespace InstructionHandler {
     jump_to(offset+2);
   }
 
+  unsigned short calculate_effective_address(unsigned char Mod, unsigned char R_M, unsigned int displacement) {
+    unsigned int effective_address = 0;
+    return 0;
+#if 0 
+    switch (Mod) {
+        case 0b00:
+            // Endereçamento indireto, exemplo: [BX]
+            if (R_M == 0b111) {
+                effective_address = displacement;
+            } else if (R_M == 0b011) {
+                effective_address = *(regs.bx) + *DI;
+            }
+            // Aqui você trataria outros casos para R_M
+            break;
+        case 0b01:
+            // Endereçamento base + deslocamento de 8 bits
+            if (R_M == 0b011) {
+                effective_address = *BX + *DI + (char)displacement;  // casting para signed 8-bit
+            }
+            // Outros casos para R_M
+            break;
+        case 0b10:
+            // Endereçamento base + deslocamento de 16 bits
+            if (R_M == 0b011) {
+                effective_address = *BX + *DI + displacement;
+            }
+            // Outros casos para R_M
+            break;
+        case 0b11:
+            // Endereçamento de registro, não é necessário calcular um endereço efetivo aqui
+            break;
+    }
+    return effective_address;
+#endif
+  }
+
   void _ADD_regoraddr_8bits(DEFAULT_ARGS) {
     unsigned char byte_modrm = args.imm8_value;
     std::cout << "args.imm8_value: " << (unsigned short)args.imm8_value << std::endl;
@@ -239,7 +296,28 @@ namespace InstructionHandler {
       // TODO check OF
 
     } else {
-      std::cout << "MOD not implemented yet\n";
+      // ex: mov [di], di TODO!
+      unsigned short effective_address = calculate_effective_address(Mod, R_M /*offset*/, 0);
+      unsigned char* src_reg = bits8_find_reg_by_index(reg_or_opcode_extension);
+      unsigned char dest_value;
+
+      if(Mod != 0b00) {
+        dest_value = __read_byte(effective_address, 0);
+      } else {
+        // TODO
+        dest_value = __read_byte(effective_address, 0);
+      }
+
+      dest_value += *src_reg;
+
+      *(virtual_memory_base_address+effective_address) = dest_value;
+
+      __set_flags(dest_value);
+      
+
+      regs.pc += 2;
+      return;
+      // TODO check OF
     }
 
 
