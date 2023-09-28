@@ -186,7 +186,7 @@ namespace InstructionHandler {
           } else if(regs.ax.ah == 4) {/*TODO*/}
           else if(regs.ax.ah == 5){
             CPU.last_key = regs.cx.cl;
-            //int_queue.push({KEYBOARD, new KeyboardInterruption(CPU.last_key)});
+            //int_queue.push({KEYBOARD, new KeyboardInterruption(CPU.last_key)}); TODO isso é realmente necessário?
             break;
           }
         };
@@ -342,23 +342,24 @@ namespace InstructionHandler {
       unsigned char Reg_Opcode = (ModR_M & 0x38) >> 3;
       unsigned char RM = ModR_M & 0x07;
       
-      unsigned short* dest;
-      unsigned short* src = get_register_by_index(Reg_Opcode);
-
-      if(Mod == 3) {
-        dest = get_register_by_index(RM);
-        *dest = *src;
+      unsigned short* rhs = get_register_by_index(Reg_Opcode);
+      unsigned short* lhs = get_register_by_index(RM);
+      
+      if(Mod == 0b11) { // ex: mov di, ax
+        *lhs = *rhs;
+        regs.pc+=2;
+        return;
+      } else if (Mod == 0b00) { // ex: mov [di], ax
+        // TODO registrador BP e SP usa o segmento padrão SS, mas n to colocando isso agora
+        // to usando o DS neles também
+        *(unsigned short*) ( (((char*)virtual_memory_base_address)+(regs.ds*16)+*lhs) ) = *rhs;
         regs.pc += 2;
         return;
-      } else if (Mod == 0) {
-        // FIXME mov [bx], sp not working
-        unsigned short address = get_register_value_by_index(RM);
-        std::cout << "mov [" << address << "], " << *src << std::endl;
-        *(virtual_memory_base_address+address) = *src;
-        regs.pc += 2;
-        return;
+      } else {
+        std::cout << "Mod nao implementado ainda no opcode 0x89";
+        while(true);
       }
-      regs.pc += 2;
+
     }
 
     void _R8_RM8(DEFAULT_ARGS) {

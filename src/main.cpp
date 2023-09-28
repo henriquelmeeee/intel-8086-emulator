@@ -172,7 +172,7 @@ typedef unsigned short word;
 
 byte *virtual_memory_base_address;
 
-int main_clock_freq = 30; //4770000;
+int main_clock_freq = 10; //4770000;
 
 void infinite_loop() {
     while(true);
