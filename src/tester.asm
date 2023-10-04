@@ -4,6 +4,10 @@
 main:
   ;mov ax, 0x7c0
   ;mov ds, ax
+  mov di, 5
+  mov ax, 5
+  mov [di], ax
+  hlt
   mov bx, 5
   mov [bx], sp
   add bl, bl

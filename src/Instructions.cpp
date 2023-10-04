@@ -11,6 +11,8 @@
 // ele vai precisar explicitar isso, e então o OPCODE mudará
 // mas não lidarei com isso no momento
 
+// FIXME o find_reg_by_index() ta retornando um ponteiro invalido
+
 #include "Instructions.h"
 #include "Base.h"
 #include "Utils.h"
@@ -344,6 +346,8 @@ namespace InstructionHandler {
       
       unsigned short* rhs = get_register_by_index(Reg_Opcode);
       unsigned short* lhs = get_register_by_index(RM);
+
+      std::cout << "mod: " << (unsigned short)Mod << std::endl;
       
       if(Mod == 0b11) { // ex: mov di, ax
         *lhs = *rhs;
@@ -352,7 +356,9 @@ namespace InstructionHandler {
       } else if (Mod == 0b00) { // ex: mov [di], ax
         // TODO registrador BP e SP usa o segmento padrão SS, mas n to colocando isso agora
         // to usando o DS neles também
-        *(unsigned short*) ( (((char*)virtual_memory_base_address)+(regs.ds*16)+*lhs) ) = *rhs;
+        unsigned short* addr = (unsigned short*) (virtual_memory_base_address+regs.ds*16+(*lhs));
+        *addr = *rhs;
+        std::cout << "addr: " << (unsigned long)addr;
         regs.pc += 2;
         return;
       } else {
