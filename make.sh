@@ -1,3 +1,4 @@
+cd src
 rm source
 rm debug
 
@@ -5,3 +6,4 @@ g++ main.cpp Base.cpp Instructions.cpp DebugScreen.cpp -lSDL2 `sdl2-config --cfl
 nasm -f bin -o source tester.asm
 nasm -f bin -o handle_cpu_fault handle_invalid_opcode.asm
 sh run.sh
+cd ..

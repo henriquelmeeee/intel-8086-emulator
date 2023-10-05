@@ -11,6 +11,7 @@
 
 #define OLC_PGE_APPLICATION
 #include "olcPixelGameEngine.h"
+#include "MainVideo.h"
 
 #include <iostream>
 #include <queue>
@@ -26,8 +27,6 @@ bool should_exit = false;
 #include <stdlib.h>
 #include <sys/mman.h>
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_ttf.h>
 #include <thread>
 #include <chrono>
 
@@ -124,37 +123,8 @@ unsigned long cursor_location = VIDEO_MEMORY_BASE;
 const int FONT_WIDTH = 8;
 const int FONT_HEIGHT = 16;
 
-/* GDB protocol configuration */
-
-/*int serverSocket, newSocket;
-char data_buffer[1024];
-struct sockaddr_in serverAddr;
-struct sockaddr_storage serverStorage;
-socklen_t addr_size;
-
-bool StartGDBCommunication() {
-  serverSocket = socket(PF_INET, SOCK_STREAM, 0);
-
-  serverAddr.sin_family = AF_INET;
-  serverAddr.sin_port = htons(PORT);
-  serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
-  memset(serverAddr.sin_zero, '\0', sizeof serverAddr.sin_zero);
-
-  bind(serverSocket, (struct sockaddr *) &serverAddr, sizeof(serverAddr));
-
-  if(listen(serverSocket, 1)==0)
-    std::cout << "Waiting for GDB";
-  else
-    return false;
-
-  addr_size = sizeof serverStorage;
-  newSocket = accept(serverSocket, (struct sockaddr *) &serverStorage, &addr_size);
-
-  return true;
-}*/
-
 #include "Base.h"
-#include "Instructions.h"
+#include "Instructions/Instructions.h"
 
 std::map<unsigned short, unsigned short> ports;
 
@@ -174,13 +144,9 @@ byte *virtual_memory_base_address;
 
 int main_clock_freq = 10; //4770000;
 
-void infinite_loop() {
+inline void infinite_loop() {
     while(true);
 }
-
-
-
-
 
 extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
     /*
@@ -202,248 +168,10 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       RETURN;
     } else {
       cout << "Instruction not found\n"; // TODO throw error invalid opcode
-    }
-    // 1-byte opcodes
-    //cout << "[DBG] regs.ir: " << itoh(regs.ir) << "\n";
-    switch( (regs.ir) ) {
-        case NOP: {
-            cout << "nop\n";
-            //++regs.pc;
-            InstructionHandler::_NOP(args);
-            exit(1); // TEMPORARY for debug
-            RETURN;
-        };
-        default: {
-            //cout << "[DBG] regs.ir>>8,1byte, NOTHING FOUND\n";
-            break;
-        };
+      infinite_loop();
     }
 
-    // 2-byte opcodes test
-    byte imm_value = *(virtual_memory_base_address+(regs.cs*16)+regs.pc+1);
-    signed char offset_1byte = (signed char) imm_value; // conditional jmps
-    switch( (regs.ir) ) {
-
-      /* MOvs */
-
-      case 0xB3: { // mov bl, imm8
-        regs.bx.bl = args.imm8_value;
-        regs.pc += 2;
-        return {};
-      }
-
-
-      /* AH (high) movs */
-
-      /* Conditional Jumps */
-
-      case 0x77: { // ja/jnbe (>=)
-        if(CF == 0 && ZF == 0) {
-          jump_to(offset_1byte+2);
-          return {};
-        }
-        regs.pc += 2;
-        RETURN;
-      }
-      
-      case 0x75: { // jne (!=)
-        if(ZF == 0) {
-          jump_to(offset_1byte+2);
-          RETURN;
-        }
-        regs.pc+=2;
-        RETURN;
-      }
-
-      case 0x72: { // jb (!(>=))
-        cout << "jb ";
-        if(CF == 1) {
-          cout << "true\n";
-          jump_to(offset_1byte+2);
-          RETURN;
-        }
-        cout << "false\n";
-        regs.pc+=2;
-        RETURN;
-      }
-
-      // TODO jnb (if cf == 0)
-      // TODO jl (if sf != of)
-
-      /* sums */
-
-      case 0x04: { // add al, imm8
-        unsigned char to_sum = offset_1byte;
-        cout << "add al, " << to_sum << "\n";
-        //unsigned int value = regs.ax&AL;
-        unsigned int value = regs.ax.al;
-        cout << "value of AL: " << value << "\n";
-        unsigned int new_value = value + to_sum;
-        cout << "new value of AL: " << new_value << "\n";
-        
-        //regs.ax = (regs.ax&AL)&0;
-        regs.ax.al = 0;
-        regs.ax.al = ((new_value)&0xFF);
-        cout << "commited: " << (regs.ax.al) << "\n";
-
-        CF = (new_value>0xFF);
-        PF = (__builtin_parity(new_value&0xFF));
-        AF = ((value ^ to_sum ^ new_value) & 0x10) != 0;
-        ZF = (new_value&0xFF)==0;
-        SF = ((new_value & 0x80)!=0);
-        OF = ((value ^ -to_sum) & (value ^ new_value) & 0x80 != 0);
-
-        regs.pc+=2;
-        RETURN;
-      }
-
-      default: {
-        break;
-      };
-    };
-    
-    /* 3-byte opcode tests */
-
-    imm_value = (short) (*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1));
-    switch( (regs.ir) ) {
-        
-      case 0xB8: { // mov ax, imm16 
-        regs.ax.ax = imm_value;
-        regs.pc += 3;
-        return {};
-      };
-
-      case 0xB9: { // mov cx, imm16
-        regs.cx.cx = imm_value;
-        regs.pc += 3;
-        return {};
-      };
-
-      case 0xBA: { // mov dx, imm16
-        regs.dx.dx = imm_value;
-        regs.pc += 3;
-        return {};
-      }
-
-
-      case 0xBD: { // mov bp, imm16
-        regs.bp = imm_value;
-        regs.pc += 3;
-        return {};
-      }
-
-       /* Stack-related */
-
-      case 0xE8: { // call in same-segment (code-segment)
-        imm_value = (signed short) imm_value;
-        regs.sp -= 2;
-        unsigned short* sp_ptr = (unsigned short*)(virtual_memory_base_address+(regs.ss*16)+regs.sp);
-        *sp_ptr = regs.pc+3;
-        regs.pc += imm_value+3;
-        return {};
-      }
-
-
-      case 0x08: { // add ax, imm16
-        unsigned short to_sum = imm_value;
-        cout << "add ax, " << to_sum << "\n";
-        unsigned int value = regs.ax.ax;
-        cout << "value of AX: " << value << "\n";
-        unsigned int new_value = value + to_sum;
-        cout << "new value of AX: " << new_value << "\n";
-        
-        regs.ax.ax = new_value;
-        cout << "commited: " << (regs.ax.ax) << "\n";
-
-        CF = (new_value>0xFFFF);
-        PF = (__builtin_parity(new_value&0xFF));
-        AF = ((value ^ to_sum ^ new_value) & 0x10) != 0;
-        ZF = (new_value&0xFFFF)==0;
-        SF = ((new_value & 0x8000)!=0);
-        OF = ((value ^ -to_sum) & (value ^ new_value) & 0x8000 != 0);
-
-        regs.pc+=2;
-        RETURN;
-      }
-      
-      /*
-       * Now we need to decode opcode 0x00
-       * We get an 1-byte memory address from a register
-       * and 1-byte operand
-       * so for example:
-       * add byte [bx], al
-       * is the same as:
-       * 0x0007
-       * where "0x07" is ModR/M 00000111 (bx, al, indirect address)
-      */
-
-
-      case 0x00: { // add addr_from_reg, reg
-        unsigned char Mod = (offset_1byte&0xC0)>>6;
-        unsigned char Reg_or_Opcode = (offset_1byte&0x38)>>3;
-        unsigned char R_M = (offset_1byte&0x07);
-        cout << "add [reg/addr], reg\n";
-        if(Mod == 0) { // uses register as pointer (ex: add [bx], ax)
-          cout << "mod 0\n";
-          unsigned short pointer = 0;
-          switch(R_M) {
-            case 0: { // [BX + SI]
-              pointer = (regs.ds*16) + regs.bx.bx + regs.si;
-              cout << "bx+si\n";
-              break;
-            }
-            case 1: { // [BX + DI]
-              pointer = (regs.ds*16) + regs.bx.bx + regs.di;
-              cout << "bx+di\n";
-              break;
-            }
-            case 2: { // [BP + SI]
-              pointer = (regs.ds*16) + regs.bp + regs.si;
-              cout << "bp+si\n";
-              break;
-            }
-            case 3: { // [BP + DI]
-              pointer = (regs.ds*16) + regs.bp + regs.di;
-              cout << "bp+di\n";
-              break;
-            }
-            case 4: { // [SI] TODO
-              break;
-            }
-            case 5: { // [DI] TODO
-              break;
-            }
-            case 6: { // 16bits imm
-              pointer = (unsigned short)*((char*)virtual_memory_base_address+regs.pc+2);
-              // TODO special case here, the code needs to follow another routine.
-              break;
-            }
-            case 7: { // [BX] TODO
-              break;
-            }
-            default: {break;}
-          }
-          cout << "calculating\n";
-          unsigned char value_at_pointer = *reinterpret_cast<unsigned char*>(&virtual_memory_base_address[pointer]);
-          unsigned char value_to_add__reg = *reinterpret_cast<unsigned short*>(&virtual_memory_base_address[regs.pc+2]);
-          value_to_add__reg = get_register_value_by_index(value_to_add__reg);
-          unsigned char result = value_at_pointer + value_to_add__reg;
-
-          cout << "result: " << (unsigned short)result << "\nat address: " << pointer << "\n";
-
-          *reinterpret_cast<unsigned char*>(&virtual_memory_base_address[pointer]) = result;
-          regs.pc+=2;
-          RETURN;
-          // TODO flags
-
-        } else {
-          RETURN;
-        }
-      }
-
-      case 0x8B: {
-      }
-
+   /*
       default: {
         // flag Interruption Flag não afeta exceções da CPU
         cout << "\033[31mCPU Fault at 0x" << itoh(regs.pc) << "\033[0m\n";
@@ -466,7 +194,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
         return {};
       };
     }
-
+    */
     return {};
 
 }
@@ -510,107 +238,6 @@ void inline wait_for_user() {
 
 const int _CHAR_WIDTH = VIDEO_WIDTH / VIDEO_COLUMNS;
 const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
-
-/* Interruption-related with SDL2; Video too */
-
-std::queue<struct Interruption> int_queue;
-
-namespace Video {
-#define VIDEO_REFRESH_RATE 1000 / 60
-
-  void drawCharsOnRefresh(SDL_Renderer* renderer, const unsigned short* videoMemory, TTF_Font* font) {
-    //cout << "[Video] drawCharsOnRefresh\tDesenhando caracteres...\n";
-    for(int y = 0; y < VIDEO_ROWS; y++) {
-      for(int x = 0; x < VIDEO_COLUMNS; x++) {
-        char ch = videoMemory[y*VIDEO_COLUMNS+x];
-        char str[2] = {ch, 0};
-
-        SDL_Color textColor = {255, 255, 255, 255};
-
-        SDL_Surface* surface = TTF_RenderText_Solid(font, str, textColor);
-        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
-
-        SDL_Rect dst;
-        dst.x = x * FONT_WIDTH;
-        dst.y = y * FONT_HEIGHT;
-        dst.w = FONT_WIDTH;
-        dst.h = FONT_HEIGHT;
-        SDL_RenderCopy(renderer, texture, NULL, &dst);
-        SDL_DestroyTexture(texture);
-        SDL_FreeSurface(surface);
-
-        //cout << ch;
-      }
-    }
-  }
-  
-  bool running=true;
-
-  void refresh(const char* videoMemory) {
-    std::unique_lock<std::mutex> lock(sdl_mutex);
-    if(SDL_Init(SDL_INIT_VIDEO) != 0) {
-      std::cerr << "SDL_Init err: " << SDL_GetError() << std::endl;
-      running = false;
-      return;
-    }
-    
-
-    SDL_Window* window = SDL_CreateWindow("Terminal", \
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, VIDEO_WIDTH * FONT_WIDTH, VIDEO_HEIGHT * FONT_HEIGHT, 0);
-
-    if(window == nullptr) {
-      std::cerr << "SDL_CreateWindow err: " << SDL_GetError() << std::endl;
-      SDL_Quit();
-      running=false;
-      return;
-    }
-
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
-    if(renderer == nullptr) {
-      SDL_DestroyWindow(window);
-      std::cerr << "SDL_CreateRenderer err: " << SDL_GetError() << std::endl;
-      running=false;
-      return;
-    }
-
-    SDL_Event event;
-
-    TTF_Init();
-
-    TTF_Font* font = TTF_OpenFont("fonts/VGA.ttf", VIDEO_HEIGHT);
-    if(font == nullptr) {
-      SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
-      exit(1);
-    }
-    lock.unlock();
-
-    while (running) { // TODO colocar isso numa thread separada pode melhorar a latencia entre o teclado e o emulador
-      while(SDL_PollEvent(&event)) {
-        if(event.type == SDL_QUIT) {
-          running = false;
-          break;
-        } else if(event.type == SDL_KEYDOWN) {
-          unsigned char key = event.key.keysym.sym;
-          // TODO tratamento especial para teclas de controle (modificação do are_shift_pressed, etc)
-          CPU.last_key = key;
-          CPU.keyboard_pendent_interrupt = true;
-          int_queue.push({KEYBOARD, new KeyboardInterruption(key)});
-        };
-      }
-      SDL_RenderClear(renderer);
-
-      drawCharsOnRefresh(renderer, (const unsigned short*)videoMemory, font);
-      SDL_RenderPresent(renderer);
-      std::this_thread::sleep_for(std::chrono::milliseconds(VIDEO_REFRESH_RATE));
-    }
-
-    TTF_CloseFont(font);
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-    SDL_Quit();
-    should_exit = true;
-  }
-}
 
 extern "C" void start_execution_by_clock(Device::Devices *devices) {
     while(true) {
