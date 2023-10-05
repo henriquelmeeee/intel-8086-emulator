@@ -668,65 +668,62 @@ extern "C" void start_execution_by_clock(Device::Devices *devices) {
     }
 }
 
-extern "C" int main(int argc, char *argv[]) {
-      namespace po = boost::program_options;
+// Every device will have an E/S port associated ("allocated")
 
-      po::options_description desc("Allowed options");
-      desc.add_options()
-        ("breakpoint,bp", "breakpoint gerado no início da execução")
-        ("master,m", po::value<std::string>(), "caminho para o disco master")
-        ("slaves,disks", po::value<std::string>(), "discos adicionais");
+extern "C" int main(int argc, char* argv[]) {
+  namespace po = boost::program_options;
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("breakpoint,bp", "breakpoint at start")
+    ("master,m", po::value<std::string>(), "master disk path")
+    ("slaves,disks", po::value<std::string>(), "other disks");
 
-      po::variables_map vm;
-      po::store(po::parse_command_line(argc, argv, desc), vm);
-      po::notify(vm);
-      
-      if(vm.count("breakpoint")) {
-        STEP_BY_STEP = true;
-        cout << "BREAKPOINT habilitado\n";
-      }
+  po::variables_map vm;
+  po::store(po::parse_command_line(argc, argv, desc), vm);
+  po::notify(vm);
 
-      if(!vm.count("master")){
-        cout << "Informe um disco para ser carregado\n";
-        exit(1);
-      }
+  if(vm.count("breakpoint")) {
+    STEP_BY_STEP = true;
+    cout << "[main] Breakpoint enabled\n";
+  }
 
-      system("clear");
+  if(!vm.count("master")) {
+    cout << "[main] ERROR: 'master' disk needs to be informed";
+    exit(1);
+  }
 
-     /*serverSocket = 0*/;
-      #ifdef CONNECT_BY_GDB
-        if(!StartGDBCommunication())
-          return -1;
-      #endif
-      virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-      cout << "Endereço base da memória virtual alocada (512MB): 0x" \
-                  << itoh((unsigned long)virtual_memory_base_address) << "\n";
-                    
-      cout << "Carregando bootloader (setor 0) para memória no endereço-offset 0x7c00...\n";
-      
-      const char* master_param_location = vm["master"].as<std::string>().c_str();
-      FILE* disk = std::fopen(master_param_location, "rb");
+  system("/bin/clear");
 
-      FILE* second_disk = std::fopen("handle_cpu_fault", "rb"); // just for test
-      if(!disk) {
-        cout << "Erro ao ler arquivo"; return -1; }
-      byte buffer[512];
-      std::fread(buffer, sizeof(byte), 512, disk);
-      for(int byte_ = 0; byte_ < 512; byte_++) {
-        if(buffer[byte_] == 0)
-          cout << ".";
-        else
-          cout << "!";
-        *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
-      }
-      
+  virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  cout << "[main] virtual_memory_base_addr: " << virtual_memory_base_address << "\n";
+  cout << "[main] Loading bootloader\tTODO: Load BIOS instead\n";
+  
+  const char* master_param_location = vm["master"].as<std::string>().c_str();
+  FILE* disk = std::fopen(master_param_location, "rb");
 
-      /* Agora, este é apenas uma representação "forçada" para lidar com CPU FAULT invalid opcode
+  //FILE* second_disk = std::fopen("handle_cpu_fault", "rb"); // just for test
+  
+  if(!disk) {
+    cout << "Error while trying to rad master disk"; return -1; }
+
+  byte buffer[512];
+  std::fread(buffer, sizeof(byte), 512, disk);
+  for(int byte_ = 0; byte_ < 512; byte_++) {
+    if(buffer[byte_] == 0)
+      cout << ".";
+    else
+      cout << "!";
+    *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
+  }
+
+ /*
+ 
+      \/\* Agora, este é apenas uma representação "forçada" para lidar com CPU FAULT invalid opcode
        * na prática, temos que carregar os discos fornecidos em ordem
        * criando uma instância de "Disk" para cada um, e atribuindo endereços E/S
        * e, ao mesmo tempo, um ponteiro para seus dados na memória
        * mas, por enquanto, está bom assim
-      */
+      \*\/
 
       std::fread(buffer, sizeof(byte), 4, second_disk);
       std::fclose(second_disk);
@@ -736,36 +733,39 @@ extern "C" int main(int argc, char *argv[]) {
       *((unsigned short*)virtual_memory_base_address+0x001A) = 0x00FF; // Handler para CPU FAULT INVALID_OPCODE
       cout << "\n";
         
-      regs.pc = (unsigned short)0x7c00;
-      regs.cs = 0;
-      regs.ss = 0;
-      regs.ds = 0x7c0; // O PADRÃO SERIA 0X00
-      regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
-      regs.flags.all = 0;
+ */
 
-      const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
+  regs.pc = (unsigned short)0x7c00;
+  regs.cs = 0;
+  regs.ss = 0;
+  regs.ds = 0x7c0; // O PADRÃO SERIA 0X00
+  regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
+  regs.flags.all = 0;
 
-      std::thread refreshThread(Video::refresh, videoMemory);
+  const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
 
-      refreshThread.detach();
+  std::thread refreshThread(Video::refresh, videoMemory);
 
-      Device::Keyboard *kb = new Device::Keyboard();
-      Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
+  refreshThread.detach();
 
-      Device::Devices *devices = new Device::Devices(master, kb);
-      auto wrapper = [&]() {start_execution_by_clock(devices);};
+  cout << "[main] Initializing devices 'keyboard' & 'master disk'\n";
 
-      std::thread execution_by_clock(wrapper);
-      execution_by_clock.detach();
+  Device::Keyboard *kb = new Device::Keyboard();
+  Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
 
-      std::thread debug_screen(DebugScreenThread);
-      debug_screen.detach();
+  Device::Devices *devices = new Device::Devices(master, kb);
+  
+  auto wrapper = [&]() {start_execution_by_clock(devices);};
+  std::thread execution_by_clock(wrapper);
+  execution_by_clock.detach();
+
+  std::thread debug_screen(DebugScreenThread);
+  debug_screen.detach();
       
-      while(!should_exit);
+  while(!should_exit);
 
-      cout << "Programa finalizado\n";
-      std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
+  cout << "Program finished\n";
+  std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
       
-      return 0;
-    return 0;
+  return 0;
 }
