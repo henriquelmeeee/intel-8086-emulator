@@ -170,7 +170,7 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       cout << "Instruction not found\n"; // TODO throw error invalid opcode
       infinite_loop();
     }
-
+#if 0
    /*
       default: {
         // flag Interruption Flag não afeta exceções da CPU
@@ -195,8 +195,8 @@ extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
       };
     }
     */
+#endif
     return {};
-
 }
 
 const char* supported_features_gdb_response = "$#00";
@@ -240,41 +240,44 @@ const int _CHAR_WIDTH = VIDEO_WIDTH / VIDEO_COLUMNS;
 const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
 
 extern "C" void start_execution_by_clock(Device::Devices *devices) {
-    while(true) {
-        word instruction_offset = (regs.cs*16) + regs.pc;
-        regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
-        //cout << "Opcode: " << itoh(regs.ir) << "\n";
+  while(true) {
+    word instruction_offset = (regs.cs*16) + regs.pc;
+    regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
+    //cout << "Opcode: " << itoh(regs.ir) << "\n";
         
-        for(auto disk : devices->disks) {
-          if(!(disk->Refresh())) {
-            cout << "Disk error: " << disk->getLastError() << "\n";
-          }
-        }
-
-        // FIFO model
-        
-        if( ((!(int_queue.empty())) && IF) && !CPU.areInException && !CPU.areInInterruption) {
-          if(CPU.hlt)
-            CPU.hlt = false;
-          Interruption _int = int_queue.front();
-          if(_int.type == KEYBOARD) {
-            cout << "Calling handler of Keyboard Interruption\n";
-            KeyboardInterruption* handler = reinterpret_cast<KeyboardInterruption*>(_int.interruption_object);
-            handler->handle();
-          }
-          // TODO chamar interrupção adequada
-          // seria bom, em cada interruption_object, ter uma rotina para lidar com o handler de interrupção,
-          //int_queue.front()->interruption_object->handle();
-          int_queue.pop();
-        }
-        
-        if(STEP_BY_STEP)
-          wait_for_user();
-        ++iterations;
-        if(!CPU.hlt)
-          decode_and_execute(devices);
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
+    for(auto disk : devices->disks) {
+      if(!(disk->Refresh())) {
+        cout << "Disk error: " << disk->getLastError() << "\n";
+      }
     }
+
+    // FIFO model
+        
+    if( ((!(CPU.int_queue.empty())) && IF) && !CPU.areInException && !CPU.areInInterruption) {
+      if(CPU.hlt)
+        CPU.hlt = false;
+      Interruption _int = CPU.int_queue.front();
+      if(_int.type == KEYBOARD) {
+        cout << "Calling handler of Keyboard Interruption\n";
+        KeyboardInterruption* handler = reinterpret_cast<KeyboardInterruption*>(_int.interruption_object);
+        handler->handle();
+      }
+      // TODO chamar interrupção adequada
+      // seria bom, em cada interruption_object, ter uma rotina para lidar com o handler de interrupção,
+      //int_queue.front()->interruption_object->handle();
+      CPU.int_queue.pop();
+    }
+        
+    if(STEP_BY_STEP)
+      wait_for_user();
+
+    ++iterations;
+
+    if(!CPU.hlt)
+      decode_and_execute(devices);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
+  }
 }
 
 // Every device will have an E/S port associated ("allocated")

@@ -11,6 +11,9 @@ typedef unsigned short word;
 #include <map>
 #include <vector>
 #include <mutex>
+#include <queue>
+
+#include "Devices.h"
 
 extern std::mutex sdl_mutex;
 
@@ -23,6 +26,7 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 }
 
 extern std::map<unsigned char, struct InstructionInfo> opcode_map;
+
 extern bool should_exit;
 extern unsigned short current_memory_addr;
 
@@ -30,6 +34,8 @@ class Processor {
   public:
     bool areInException;
     bool areInInterruption;
+    
+    std::queue<Interruption> int_queue;
 
     bool hlt;
 
@@ -41,6 +47,7 @@ class Processor {
       this->hlt = false;
     }
 };
+
 extern Processor CPU;
 
 #define VIDEO_WIDTH 80
