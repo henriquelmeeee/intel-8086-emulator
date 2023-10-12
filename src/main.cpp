@@ -10,8 +10,8 @@
 // Fazer Base.cpp com as funcs principais tipo write_char_to_video_memory algo assim
 
 #define OLC_PGE_APPLICATION
-#include "olcPixelGameEngine.h"
-#include "MainVideo.h"
+#include "Video/olcPixelGameEngine.h"
+#include "Video/MainVideo.h"
 
 #include <iostream>
 #include <queue>
@@ -39,7 +39,7 @@ bool should_exit = false;
 
 #include <map>
 #include "Devices.h"
-#include "Instructions.h"
+#include "Instructions/Instructions.h"
 #include "Exceptions.h"
 
 #include <boost/program_options.hpp>
@@ -241,24 +241,6 @@ const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
 
 extern "C" void start_execution_by_clock(Device::Devices *devices) {
     while(true) {
-        //cout << "Execução de RIP em 0x" << itoh(regs.pc) << "\n";
-        /*if(serverSocket != 0) {
-          while(true) {
-            memset(data_buffer, 0, sizeof(data_buffer));
-            ssize_t numBytesRcvd = recv(newSocket, data_buffer, sizeof(data_buffer), 0);
-            cout << "[GDB]\n" << data_buffer << "\n";
-            if(numBytesRcvd == 0) {
-              cout << "Connection closed by the client\n";
-              return;
-            }
-            if(strncmp(data_buffer, "+$qSupported", 12) == 0) {
-              send(newSocket, supported_features_gdb_response, strlen(supported_features_gdb_response), 0);
-            } else if (data_buffer[1] == 'p') {
-              //GDBCommunication:handle_p_command(((word*)&regs)[atoi(data_buffer+2)]);
-
-            }
-          }
-        }*/
         word instruction_offset = (regs.cs*16) + regs.pc;
         regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
         //cout << "Opcode: " << itoh(regs.ir) << "\n";

@@ -5,9 +5,9 @@
 
 #include <string>
 #include <stdlib.h>
-#include "Utils.h"
-#include "Base.h"
-#include "Devices.h"
+#include "../Utils.h"
+#include "../Base.h"
+#include "../Devices.h"
 
 #define _DEFAULT_ARGS struct InstructionArgs
 #define DEFAULT_ARGS _DEFAULT_ARGS args

@@ -1,5 +1,5 @@
 #define OCL_PGE_APPLICATION
-#include "olcPixelGameEngine.h"
+#include "Video/olcPixelGameEngine.h"
 
 #include <iostream>
 #include <stdlib.h>
@@ -9,7 +9,7 @@
 
 #include "Base.h"
 #include "Utils.h"
-#include "Instructions.h"
+#include "Instructions/Instructions.h"
 
 template <typename I> std::string _itoh(I w, size_t hex_len = sizeof(I)<<1) {
     static const char* digits = "0123456789ABCDEF";
