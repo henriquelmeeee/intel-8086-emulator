@@ -1,64 +1,26 @@
-/*
- * 16-bit x86 CPU emulator (Intel 8086)
- * it runs MS-DOS ;)
- * just for educational purposes.
- by https://henriquedev.com
-*/
+#include "preload.h"
 
-
-// TODO FIXME colocar o Device::devices para Instructions.cpp poder usar
-// Fazer Base.cpp com as funcs principais tipo write_char_to_video_memory algo assim
-
-#define OLC_PGE_APPLICATION
 #include "Video/olcPixelGameEngine.h"
 #include "Video/MainVideo.h"
 
-#include <iostream>
-#include <queue>
-#include <fstream>
-
-bool STEP_BY_STEP=false;
-bool should_exit = false;
-
-// TODO FIXME colocar isso num .h pra todos arquivos poderem usar
-// inclusive o Instructions.h
-// TODO FIXME colocar handler pra instrucao "iret"
+bool STEP_BY_STEP = false;
 
 #include <stdlib.h>
 #include <sys/mman.h>
-
 #include <thread>
 #include <chrono>
-
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <string.h>
-
-#include "Utils.h"
-
 #include <map>
-#include "Devices.h"
-#include "Instructions/Instructions.h"
-#include "Exceptions.h"
 
 #include <boost/program_options.hpp>
-
+#include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
 #include <fstream>
-
-#include "DebugScreen.h"
-
-std::mutex sdl_mutex;
 
 #define NI InstructionHandler::NotImplemented
 
-unsigned long iterations = 0;
-
-void CLI(InstructionArgs args){
+void CLI(InstructionArgs args) {
   IF = 0;
   regs.pc += 1;
 }
@@ -117,267 +79,70 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0x33, {2, NI, "XOR reg2, reg1 (NI)"}},
 };
 
-/* Video-related */
-
-unsigned long cursor_location = VIDEO_MEMORY_BASE;
-const int FONT_WIDTH = 8;
-const int FONT_HEIGHT = 16;
-
-#include "Base.h"
-#include "Instructions/Instructions.h"
-
-std::map<unsigned short, unsigned short> ports;
-
-struct Registers regs;
-Processor CPU;
-
-#define cout std::cout
-#define flush std::flush
-
-typedef unsigned char byte;
-typedef unsigned short word;
-
-#define KB 1024
-#define MB (1024*1024)
-
 byte *virtual_memory_base_address;
+int main_clock_freq = 10;
 
-int main_clock_freq = 10; //4770000;
+ExecutionState decode_and_execute(Device::Devices* devices) {
+  struct InstructionArgs args = {
+    (*virtual_memory_base_address+(regs.cs*16)+regs.pc),
+    (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
+    (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
+    devices,
+  };
 
-inline void infinite_loop() {
+  if(!(opcode_map[regs.ir].handler == nullptr)) {
+    opcode_map[regs.ir].handler(args);
+  } else {
+    //throw_cpu_fault(invalid_opcode)
+    std::cout << "insn not found\n";
     while(true);
-}
-
-extern "C" ExecutionState decode_and_execute(Device::Devices* devices) {
-    /*
-        * We will try to detect the operational code of the actual instruction 
-        * First we will try to decode one-byte code
-        * If we found nothing, we will try to decode 2-byte instructions 
-        * starting by register moving
-    */
-    
-    struct InstructionArgs args = {
-      *(virtual_memory_base_address+(regs.cs*16)+regs.pc),
-      (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
-      (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
-      devices,
-    };
-
-    if(!(opcode_map[regs.ir].handler == nullptr)) {
-      opcode_map[regs.ir].handler(args);
-      RETURN;
-    } else {
-      cout << "Instruction not found\n"; // TODO throw error invalid opcode
-      infinite_loop();
-    }
-#if 0
-   /*
-      default: {
-        // flag Interruption Flag não afeta exceções da CPU
-        cout << "\033[31mCPU Fault at 0x" << itoh(regs.pc) << "\033[0m\n";
-        dump_registers();
-        cout << "Instructions Counter: " << iterations << "\nCalling handler...\n";
-        if(CPU.areInException) {
-          cout << "\033[31mDouble fault detected, shutting down...\033[0m\n";
-          exit(1);
-        }
-        _push(regs.cs);
-        _push(regs.pc);
-        _push(regs.flags.all);
-
-        unsigned short code_segment = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4);
-        regs.cs = code_segment;
-        unsigned short routine_addr = *((unsigned short*)virtual_memory_base_address+_INVALID_OPCODE*4+2);
-        regs.pc = routine_addr;
-        CPU.areInException = true;
-        cout << "PC is now 0x" << itoh(regs.pc) << "\n";
-        return {};
-      };
-    }
-    */
-#endif
-    return {};
-}
-
-const char* supported_features_gdb_response = "$#00";
-
-char user_buffer[32];
-
-void inline wait_for_user() {
-  cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir].name << "\n\n";
-  while(true) {
-    cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address" << "\n> ";
-  
-    std::cin >> user_buffer;
-    unsigned short address_to_read = atoi(&(user_buffer[2]));
-    cout << "\n";
-    if(strcmp(user_buffer, "ni") == 0) {
-      break;
-    } else if (strcmp(user_buffer, "dr") == 0){
-      cout << "Registers (big-endian converted):\n";
-      dump_registers();
-    } else if (strncmp(user_buffer, "rd", 2) == 0) {
-      cout << "Address to read: " << address_to_read;
-      short value = ((short) *((char*)virtual_memory_base_address+address_to_read));
-      cout << "\nValue (signed): " << value;
-      cout << "\nValue (unsigned): " << (unsigned short)value;
-      cout << "\nInstruction (if valid): " << opcode_map[value].name;
-      cout << "\n";
-    } else if (strncmp(user_buffer, "wr", 2) == 0){
-      cout << "Address to write: " << address_to_read;
-      cout << "\nValue to write: > ";
-      short value;
-      std::cin >> value;
-      *((char*)virtual_memory_base_address+address_to_read) = value;
-      cout << "Success!\n";
-    } else {
-      exit(1);
-    }
   }
+
+
 }
 
-const int _CHAR_WIDTH = VIDEO_WIDTH / VIDEO_COLUMNS;
-const int _CHAR_HEIGHT = VIDEO_HEIGHT / VIDEO_ROWS;
+// TODO wait_for_user() .old-src/main.cpp
 
-extern "C" void start_execution_by_clock(Device::Devices *devices) {
+void start_execution_by_clock(Device::Devices *devices) {
   while(true) {
     word instruction_offset = (regs.cs*16) + regs.pc;
     regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
-    //cout << "Opcode: " << itoh(regs.ir) << "\n";
-        
+
     for(auto disk : devices->disks) {
-      if(!(disk->Refresh())) {
-        cout << "Disk error: " << disk->getLastError() << "\n";
+      if(!disk->Refresh()) {
+        // o disco irá definir seu código de erro . 
       }
     }
 
-    // FIFO model
-        
-    if( ((!(CPU.int_queue.empty())) && IF) && !CPU.areInException && !CPU.areInInterruption) {
+  // FIFO model
+
+  // TODO é realmente necessário checar "areInException"?
+  // interrupções aninhadas seriam melhores, apenas teríamos que adicionar um contador 
+  // pra evitar tirar o "cpuAreInInterruption" cedo demais
+  // enfim, tem que melhorar isso no geral
+#if 0
+    if( (!CPU.int_queue.empty() && IF) && !CPU.areInException && !CPU.areInInterruption ) {
       if(CPU.hlt)
         CPU.hlt = false;
-      Interruption _int = CPU.int_queue.front();
-      if(_int.type == KEYBOARD) {
-        cout << "Calling handler of Keyboard Interruption\n";
-        KeyboardInterruption* handler = reinterpret_cast<KeyboardInterruption*>(_int.interruption_object);
+      Interruption* _int = CPU.int_queue.front();
+      if(_int->type == KEYBOARD) {
+        std::cout << "Calling handler of Keyboard interruption";
+        KeyboardInterruption* handler = reinterpret_cast<KeyboardInterruption*>(_int->interruption_object);
         handler->handle();
       }
-      // TODO chamar interrupção adequada
-      // seria bom, em cada interruption_object, ter uma rotina para lidar com o handler de interrupção,
-      //int_queue.front()->interruption_object->handle();
       CPU.int_queue.pop();
     }
-        
+#endif
     if(STEP_BY_STEP)
       wait_for_user();
-
     ++iterations;
-
     if(!CPU.hlt)
       decode_and_execute(devices);
-
     std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
   }
 }
 
-// Every device will have an E/S port associated ("allocated")
-
-extern "C" int main(int argc, char* argv[]) {
-  namespace po = boost::program_options;
-  po::options_description desc("Allowed options");
-  desc.add_options()
-    ("breakpoint,bp", "breakpoint at start")
-    ("master,m", po::value<std::string>(), "master disk path")
-    ("slaves,disks", po::value<std::string>(), "other disks");
-
-  po::variables_map vm;
-  po::store(po::parse_command_line(argc, argv, desc), vm);
-  po::notify(vm);
-
-  if(vm.count("breakpoint")) {
-    STEP_BY_STEP = true;
-    cout << "[main] Breakpoint enabled\n";
-  }
-
-  if(!vm.count("master")) {
-    cout << "[main] ERROR: 'master' disk needs to be informed";
-    exit(1);
-  }
-
-  system("/bin/clear");
-
-  virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  cout << "[main] virtual_memory_base_addr: " << virtual_memory_base_address << "\n";
-  cout << "[main] Loading bootloader\tTODO: Load BIOS instead\n";
+int main() {
+  // TODO
   
-  const char* master_param_location = vm["master"].as<std::string>().c_str();
-  FILE* disk = std::fopen(master_param_location, "rb");
-
-  //FILE* second_disk = std::fopen("handle_cpu_fault", "rb"); // just for test
-  
-  if(!disk) {
-    cout << "Error while trying to rad master disk"; return -1; }
-
-  byte buffer[512];
-  std::fread(buffer, sizeof(byte), 512, disk);
-  for(int byte_ = 0; byte_ < 512; byte_++) {
-    if(buffer[byte_] == 0)
-      cout << ".";
-    else
-      cout << "!";
-    *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
-  }
-
- /*
- 
-      \/\* Agora, este é apenas uma representação "forçada" para lidar com CPU FAULT invalid opcode
-       * na prática, temos que carregar os discos fornecidos em ordem
-       * criando uma instância de "Disk" para cada um, e atribuindo endereços E/S
-       * e, ao mesmo tempo, um ponteiro para seus dados na memória
-       * mas, por enquanto, está bom assim
-      \*\/
-
-      std::fread(buffer, sizeof(byte), 4, second_disk);
-      std::fclose(second_disk);
-      for(int byte_ = 0; byte_ < 4; byte_++) {
-        *(virtual_memory_base_address+0x00FF+byte_) = buffer[byte_];
-      }
-      *((unsigned short*)virtual_memory_base_address+0x001A) = 0x00FF; // Handler para CPU FAULT INVALID_OPCODE
-      cout << "\n";
-        
- */
-
-  regs.pc = (unsigned short)0x7c00;
-  regs.cs = 0;
-  regs.ss = 0;
-  regs.ds = 0x7c0; // O PADRÃO SERIA 0X00
-  regs.es = 0; // TEMPORARY UNTIL WE MAKE MOVS OF SEGMENT REGISTERS (0x8E)
-  regs.flags.all = 0;
-
-  const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
-
-  std::thread refreshThread(Video::refresh, videoMemory);
-
-  refreshThread.detach();
-
-  cout << "[main] Initializing devices 'keyboard' & 'master disk'\n";
-
-  Device::Keyboard *kb = new Device::Keyboard();
-  Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
-
-  Device::Devices *devices = new Device::Devices(master, kb);
-  
-  auto wrapper = [&]() {start_execution_by_clock(devices);};
-  std::thread execution_by_clock(wrapper);
-  execution_by_clock.detach();
-
-  std::thread debug_screen(DebugScreenThread);
-  debug_screen.detach();
-      
-  while(!should_exit);
-
-  cout << "Program finished\n";
-  std::fclose(disk); // TEMPORARY, depois precisamos passar o FILE como argumento para o bgl de execucao
-      
-  return 0;
 }
