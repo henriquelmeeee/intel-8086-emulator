@@ -101,7 +101,42 @@ ExecutionState decode_and_execute(Device::Devices* devices) {
 
 }
 
-// TODO wait_for_user() .old-src/main.cpp
+// wait_for_user() related
+
+unsigned long iterations = 0;
+char user_buffer[32];
+void inline wait_for_user() {
+  std::cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir].name << "\n\n";
+  while(true) {
+    std::cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address" << "\n> ";
+  
+    std::cin >> user_buffer;
+    unsigned short address_to_read = atoi(&(user_buffer[2]));
+    std::cout << "\n";
+    if(strcmp(user_buffer, "ni") == 0) {
+      break;
+    } else if (strcmp(user_buffer, "dr") == 0){
+      std::cout << "Registers (big-endian converted):\n";
+      dump_registers();
+    } else if (strncmp(user_buffer, "rd", 2) == 0) {
+      std::cout << "Address to read: " << address_to_read;
+      short value = ((short) *((char*)virtual_memory_base_address+address_to_read));
+      std::cout << "\nValue (signed): " << value;
+      std::cout << "\nValue (unsigned): " << (unsigned short)value;
+      std::cout << "\nInstruction (if valid): " << opcode_map[value].name;
+      std::cout << "\n";
+    } else if (strncmp(user_buffer, "wr", 2) == 0){
+      std::cout << "Address to write: " << address_to_read;
+      std::cout << "\nValue to write: > ";
+      short value;
+      std::cin >> value;
+      *((char*)virtual_memory_base_address+address_to_read) = value;
+      std::cout << "Success!\n";
+    } else {
+      exit(1);
+    }
+  }
+}
 
 void start_execution_by_clock(Device::Devices *devices) {
   while(true) {
@@ -142,7 +177,7 @@ void start_execution_by_clock(Device::Devices *devices) {
   }
 }
 
-int main() {
+int main(int argc, char *argv[]) {
   system("/bin/clear");
   namespace po = boost::program_options;
   po::options_description desc("Allowed options");
@@ -152,7 +187,7 @@ int main() {
   ("slaves,disks", po::value<std::string>(), "other disks");
 
   po::variables_map vm;
-  po::store(po::parse_command_line(args, argv, desc), vm);
+  po::store(po::parse_command_line(argc, argv, desc), vm);
   po::notify(vm);
 
   if(vm.count("breakpoint")) {
@@ -166,7 +201,7 @@ int main() {
   }
 
   virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  std::cout << "[main] base of allocated VM memory: " << virtual_memory-base_address << "\n";
+  std::cout << "[main] base of allocated VM memory: " << virtual_memory_base_address << "\n";
   std::cout << "[main] Loading bootloader\tTODO: Load BIOS instead\n";
   
   const char* master_param_location = vm["master"].as<std::string>().c_str();
@@ -181,9 +216,9 @@ int main() {
   std::fread(buffer, sizeof(byte), 512, disk);
   for(int byte_ = 0; byte_ < 512; byte_++) {
     if(buffer[byte_] == 0)
-      cout << ".";
+      std::cout << ".";
     else
-      cout << "!";
+      std::cout << "!";
     *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
   }
 
@@ -192,7 +227,7 @@ int main() {
   regs.ss = 0;
   regs.ds = 0x07c0;
   
-  const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
+  const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE_ADDRESS;
 
   std::thread refreshThread(Video::refresh, videoMemory);
   refreshThread.detach();
@@ -212,5 +247,5 @@ int main() {
       
   while(!should_exit);
 
-  cout << "Program finished\n";
+  std::cout << "Program finished\n";
 }

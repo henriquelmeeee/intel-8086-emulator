@@ -12,6 +12,14 @@ typedef unsigned short word;
 #include <vector>
 #include <mutex>
 
+enum ExecutionState {
+    SUCCESS,
+    ERROR,
+};
+
+extern unsigned long iterations;
+
+#define VIDEO_MEMORY_BASE_ADDRESS 0xB8000
 extern std::mutex sdl_mutex;
 
 template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
@@ -25,7 +33,6 @@ template <typename I> std::string itoh(I w, size_t hex_len = sizeof(I)<<1) {
 extern std::map<unsigned char, struct InstructionInfo> opcode_map;
 
 extern bool should_exit;
-extern unsigned short current_memory_addr;
 
 class Interruption;
 
@@ -46,10 +53,24 @@ class Processor {
 extern Processor CPU;
 
 #include "Video/MainVideo.h"
+#include "Video/olcPixelGameEngine.h"
+#include "Video/DebugScreen.h"
+
 #include "Instructions/Instructions.h"
 #include "Devices/Devices.h"
 
+extern unsigned short current_memory_addr;
 extern unsigned char* virtual_memory_base_address;
+
+inline unsigned long __read_word(unsigned short address, unsigned char segment) {
+  current_memory_addr = address;
+  return *((unsigned short*)(virtual_memory_base_address+(segment)+address));
+}
+
+inline unsigned char __read_byte(unsigned short address, unsigned char segment) {
+  current_memory_addr = address;
+  return *((unsigned  char*)(virtual_memory_base_address+(segment)+address));
+}
 
 extern unsigned long cursor_location;
 inline void write_char_on_memory(char ch) {
@@ -88,35 +109,46 @@ union Flags {
   word all;
 };
 
+union __ax {
+  struct {unsigned char al; unsigned char ah;};
+  unsigned short ax;
+};
+
+union __cx {
+  struct {unsigned char cl; unsigned char ch;};
+  unsigned short cx;
+};
+
+union __dx {
+  struct {unsigned char dl; unsigned char dh;};
+  unsigned short dx;
+};
+
+union __bx {
+  struct {unsigned  char bl; unsigned char bh;};
+  unsigned short bx;
+};
+
 struct Registers {
-  union {
-    struct {unsigned char al; unsigned char ah;};
-    unsigned short ax;
-  } ax;
-  union {
-    struct {unsigned char al; unsigned char ah;};
-    unsigned short ax;
-  } cx;
-  union {
-    struct {unsigned char al; unsigned char ah;};
-    unsigned short ax;
-  } dx;
-  union {
-    struct {unsigned char al; unsigned char ah;};
-    unsigned short ax;
-  } bx;
-  word sp;
-  word bp;
-  word si;
-  word di;
-  word pc; 
-  Flags flags;
-  word cs;
-  word ss;
-  word ds;
-  word es;
-  unsigned char ir;
+    /* General-Purposes registers */
+    //_ax ax;
+    __ax ax;
+    __cx cx;
+    __dx dx;
+    __bx bx;
+    word sp;
+    word bp;
+    word si;
+    word di;
+    word pc;
+    Flags flags;
+    word cs;
+    word ss;
+    word ds;
+    word es;
+    unsigned char ir;
 } extern regs;
+
 
 /* FLAGS
  bits
