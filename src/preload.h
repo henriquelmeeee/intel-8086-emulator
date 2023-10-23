@@ -11,6 +11,8 @@ typedef unsigned short word;
 #include <iostream>
 #include <vector>
 #include <mutex>
+#include <queue>
+#include <map>
 
 enum ExecutionState {
     SUCCESS,
