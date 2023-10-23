@@ -143,6 +143,74 @@ void start_execution_by_clock(Device::Devices *devices) {
 }
 
 int main() {
-  // TODO
+  system("/bin/clear");
+  namespace po = boost::program_options;
+  po::options_description desc("Allowed options");
+  desc.add_options()
+  ("breakpoint,bp", "breakpoint at start")
+  ("master,m", po::value<std::string>(), "master disk path")
+  ("slaves,disks", po::value<std::string>(), "other disks");
+
+  po::variables_map vm;
+  po::store(po::parse_command_line(args, argv, desc), vm);
+  po::notify(vm);
+
+  if(vm.count("breakpoint")) {
+    STEP_BY_STEP = true;
+    std::cout << "[main] Breakpoint is enabled\n";
+  }
+
+  if(!vm.count("master")) {
+    std::cout << "[main] ERROR: 'master' disk needs to be informed";
+    exit(1);
+  }
+
+  virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  std::cout << "[main] base of allocated VM memory: " << virtual_memory-base_address << "\n";
+  std::cout << "[main] Loading bootloader\tTODO: Load BIOS instead\n";
   
+  const char* master_param_location = vm["master"].as<std::string>().c_str();
+  FILE* disk = std::fopen(master_param_location, "rb");
+
+  if(!disk) {
+    std::cout << "[main] Error while trying to read master disk";
+    exit(1);
+  }
+
+  byte buffer[512];
+  std::fread(buffer, sizeof(byte), 512, disk);
+  for(int byte_ = 0; byte_ < 512; byte_++) {
+    if(buffer[byte_] == 0)
+      cout << ".";
+    else
+      cout << "!";
+    *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
+  }
+
+  regs.pc = (unsigned short)0x7c00;
+  regs.cs = 0x07c0;
+  regs.ss = 0;
+  regs.ds = 0x07c0;
+  
+  const char* videoMemory = (const char*) virtual_memory_base_address+VIDEO_MEMORY_BASE;
+
+  std::thread refreshThread(Video::refresh, videoMemory);
+  refreshThread.detach();
+  std::cout << "[main] Initializing devices\n";
+
+  Device::Keyboard *kb = new Device::Keyboard();
+  Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
+
+  Device::Devices *devices = new Device::Devices(master, kb);
+  
+  auto wrapper = [&]() {start_execution_by_clock(devices);};
+  std::thread execution_by_clock(wrapper);
+  execution_by_clock.detach();
+
+  std::thread debug_screen(DebugScreenThread);
+  debug_screen.detach();
+      
+  while(!should_exit);
+
+  cout << "Program finished\n";
 }

@@ -1,0 +1,6 @@
+#define DISK_SECTORS_PER_CYL 18
+#define DISK_CYLS 24
+#define DISK_HEADS_PER_CYL 4
+#define DISK_SECTORS DISK_CYLS*DISK_SECTORS_PER_CYL
+
+namespace Device {}
