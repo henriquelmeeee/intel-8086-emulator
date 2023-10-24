@@ -35,9 +35,9 @@ class KeyboardInterruption {
     };
 
     bool handle() {
-      _push(regs.flags.all);
-      _push(regs.cs);
-      _push(regs.pc);
+      //_push(regs.flags.all); FIXME TODO _push() problem idk
+      //_push(regs.cs);
+      //_push(regs.pc);
       unsigned char* addr_dest = virtual_memory_base_address+38;
       unsigned long segment = *((unsigned short*)(addr_dest+2)); // endereços 40 e 41
       unsigned long addr_to_jump = *((unsigned short*)addr_dest);// endereços 38 e 39

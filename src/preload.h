@@ -54,16 +54,13 @@ class Processor {
 
 extern Processor CPU;
 
-#include "Video/MainVideo.h"
-#include "Video/olcPixelGameEngine.h"
-#include "Video/DebugScreen.h"
-
-#include "Instructions/Instructions.h"
-#include "Devices/Devices.h"
+#define FONT_WIDTH 8
+#define FONT_HEIGHT 16
 
 extern unsigned short current_memory_addr;
 extern unsigned char* virtual_memory_base_address;
 
+#if 0
 inline unsigned long __read_word(unsigned short address, unsigned char segment) {
   current_memory_addr = address;
   return *((unsigned short*)(virtual_memory_base_address+(segment)+address));
@@ -73,14 +70,19 @@ inline unsigned char __read_byte(unsigned short address, unsigned char segment) 
   current_memory_addr = address;
   return *((unsigned  char*)(virtual_memory_base_address+(segment)+address));
 }
+// esse codigo todo ai acima foi colocado em Memory/memory.h
+#endif
 
 extern unsigned long cursor_location;
 inline void write_char_on_memory(char ch) {
   *(virtual_memory_base_address+cursor_location) = ch;
 }
+
 inline void cursor_update_byone() {
   cursor_location+=2;
 }
+
+#include "Memory/memory.h"
 
 struct FlagsRegister {
   word CF : 1;
@@ -189,10 +191,17 @@ struct Registers {
 #define AF (regs.flags.flags.AF)
 #define DF (regs.flags.flags.DF)
 
-extern void _push(short value);
+
 extern void jump_to(int offset);
 void dump_registers();
 void move_cursor(short x, short y);
 
 unsigned short* get_register_by_index(unsigned char index);
 unsigned short get_register_value_by_index(unsigned char index);
+
+#include "Video/MainVideo.h"
+#include "Video/olcPixelGameEngine.h"
+#include "Video/DebugScreen.h"
+
+#include "Instructions/Instructions.h"
+#include "Devices/Devices.h"
