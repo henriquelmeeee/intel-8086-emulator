@@ -1,8 +1,5 @@
 #include "preload.h"
 
-#include "Video/olcPixelGameEngine.h"
-#include "Video/MainVideo.h"
-
 bool STEP_BY_STEP = false;
 
 #include <stdlib.h>
@@ -20,9 +17,20 @@ bool STEP_BY_STEP = false;
 
 #define NI InstructionHandler::NotImplemented
 
+Registers regs = {};
+Processor CPU;
+void dump_registers() {
+  std::cout << "dump_registers() todo";
+}
+unsigned long cursor_location = 0;
+
 void CLI(InstructionArgs args) {
   IF = 0;
   regs.pc += 1;
+}
+
+void jump_to(int offset) {
+  regs.pc += offset;
 }
 
 std::map<unsigned char, struct InstructionInfo> opcode_map = {
@@ -84,7 +92,7 @@ int main_clock_freq = 10;
 
 ExecutionState decode_and_execute(Device::Devices* devices) {
   struct InstructionArgs args = {
-    (*virtual_memory_base_address+(regs.cs*16)+regs.pc),
+    (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc),    
     (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
     (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
     devices,
@@ -137,6 +145,41 @@ void inline wait_for_user() {
     }
   }
 }
+
+bool should_exit = false;
+
+
+unsigned short* get_register_by_index(unsigned char index) {
+  // TODO get register by index in "value_to_add", a menos que seja algo como add [imm16], value
+  switch(index) {
+    case 0:
+      return reinterpret_cast<unsigned short*>(&regs.ax);
+    case 1:
+      return reinterpret_cast<unsigned short*>(&regs.cx);
+    case 2:
+      return reinterpret_cast<unsigned short*>(&regs.dx);
+    case 3:
+      return reinterpret_cast<unsigned short*>(&regs.bx);
+    case 4:
+      return &regs.sp;
+    case 5:
+      return &regs.bp;
+    case 6:
+      return &regs.si;
+    case 7:
+      return &regs.di;
+    default:
+      return &regs.di;
+      // TODO FIXME throw CPU fault invalid opcode
+  }
+}
+
+unsigned short get_register_value_by_index(unsigned char index) {
+  return *get_register_by_index(index);
+}
+
+
+
 
 void start_execution_by_clock(Device::Devices *devices) {
   while(true) {

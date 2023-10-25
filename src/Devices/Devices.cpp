@@ -1,8 +1,6 @@
 #include "../preload.h"
-#if 0
-unsigned short ports[255]={};
+std::map<unsigned short, unsigned short> ports;
 
 namespace Device {
 
 }
-#endif

@@ -192,15 +192,15 @@ struct Registers {
 #define DF (regs.flags.flags.DF)
 
 
-extern void jump_to(int offset);
+void jump_to(int offset);
 void dump_registers();
 void move_cursor(short x, short y);
 
 unsigned short* get_register_by_index(unsigned char index);
 unsigned short get_register_value_by_index(unsigned char index);
-
+#include <thread>
+#include <chrono>
 #include "Video/MainVideo.h"
-#include "Video/olcPixelGameEngine.h"
 #include "Video/DebugScreen.h"
 
 #include "Instructions/Instructions.h"
