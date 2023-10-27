@@ -1,4 +1,5 @@
 #include "MainVideo.h"
+
 #include "../preload.h"
 
 /* Interruption-related with SDL2; Video too */
@@ -37,7 +38,7 @@ namespace Video {
   bool running=true;
 
   void refresh(const char* videoMemory) {
-    std::unique_lock<std::mutex> lock(sdl_mutex);
+    //std::unique_lock<std::mutex> lock(sdl_mutex);
     if(SDL_Init(SDL_INIT_VIDEO) != 0) {
       std::cerr << "SDL_Init err: " << SDL_GetError() << std::endl;
       running = false;
@@ -67,12 +68,13 @@ namespace Video {
 
     TTF_Init();
 
-    TTF_Font* font = TTF_OpenFont("fonts/VGA.ttf", VIDEO_HEIGHT);
+    TTF_Font* font = TTF_OpenFont("../Fibts/VGA.ttf", VIDEO_HEIGHT);
     if(font == nullptr) {
       SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
+      while(true);
       exit(1);
     }
-    lock.unlock();
+    //lock.unlock();
 
     while (running) { // TODO colocar isso numa thread separada pode melhorar a latencia entre o teclado e o emulador
       while(SDL_PollEvent(&event)) {
