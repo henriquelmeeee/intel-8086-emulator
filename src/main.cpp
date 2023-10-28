@@ -86,7 +86,17 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0x31, {2, NI, "XOR reg1, reg2 (NI)"}},
   {0x33, {2, NI, "XOR reg2, reg1 (NI)"}},
 
-  {0xFF, {2, NI, "INC/DEC"}}
+  /* INC */
+  {0x40, {1, InstructionHandler::INC16, "INC ax"}},
+  {0x41, {1, InstructionHandler::INC16, "INC cx"}},
+  {0x42, {1, InstructionHandler::INC16, "INC dx"}},
+  {0x43, {1, InstructionHandler::INC16, "INC bx"}},
+  {0x44, {1, InstructionHandler::INC16, "INC sp"}},
+  {0x45, {1, InstructionHandler::INC16, "INC bp"}},
+  {0x46, {1, InstructionHandler::INC16, "INC si"}},
+  {0x47, {1, InstructionHandler::INC16, "INC di"}},
+  
+  {0xFF, {2, InstructionHandler::_INC_DEC_CALL, "INC/DEC/CALL"}}
 };
 
 byte *virtual_memory_base_address;

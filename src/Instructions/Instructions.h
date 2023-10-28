@@ -53,6 +53,9 @@ namespace InstructionHandler {
     void _DL_imm8(DEFAULT_ARGS);
     void _CL_imm8(DEFAULT_ARGS);
   }
+  
+  void INC16(DEFAULT_ARGS);
+
   namespace CALL {
     void _rel16(DEFAULT_ARGS);
   }
@@ -60,4 +63,6 @@ namespace InstructionHandler {
     void _al_imm8(DEFAULT_ARGS);
   }
   void _JMP_if_equals(DEFAULT_ARGS);
+
+  void _INC_DEC_CALL(DEFAULT_ARGS);
 }

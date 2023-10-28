@@ -325,6 +325,36 @@ namespace InstructionHandler {
     regs.ax.al = 1;
   }
 
+  void INC16(DEFAULT_ARGS) { // 0x40-0x47
+    switch(args.opcode) {
+      case 0x40:
+        __set_flags(++regs.ax.ax);
+        break;
+      case 0x41:
+        __set_flags(++regs.cx.cx);
+        break;
+      case 0x42:
+        __set_flags(++regs.dx.dx);
+        break;
+      case 0x43:
+        __set_flags(++regs.bx.bx);
+        break;
+      case 0x44:
+        __set_flags(++regs.sp);
+        break;
+      case 0x45:
+        __set_flags(++regs.bp);
+        break;
+      case 0x46:
+        __set_flags(++regs.si);
+        break;
+      case 0x47:
+        __set_flags(++regs.di);
+        break;
+    }
+    regs.pc += 1;
+    }
+
   namespace MOV {
 
     void _RM16_R16(DEFAULT_ARGS) { // 0x89
@@ -429,7 +459,7 @@ namespace InstructionHandler {
 
   }
 
-  void INC_DEC_CALL(DEFAULT_ARGS) {
+  void _INC_DEC_CALL(DEFAULT_ARGS) {
     ModRM modrm = decode_modrm(args.imm16_value);
     short* register_rm = (short*)get_register_by_index(modrm.RM);
 
