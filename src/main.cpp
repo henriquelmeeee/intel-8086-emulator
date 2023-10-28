@@ -85,6 +85,8 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
 
   {0x31, {2, NI, "XOR reg1, reg2 (NI)"}},
   {0x33, {2, NI, "XOR reg2, reg1 (NI)"}},
+
+  {0xFF, {2, NI, "INC/DEC"}}
 };
 
 byte *virtual_memory_base_address;
@@ -98,7 +100,7 @@ ExecutionState decode_and_execute(Device::Devices* devices) {
     devices,
   };
 
-  if(!(opcode_map[regs.ir].handler == nullptr)) {
+  if(opcode_map[regs.ir].handler != nullptr) {
     opcode_map[regs.ir].handler(args);
   } else {
     //throw_cpu_fault(invalid_opcode)
@@ -178,13 +180,12 @@ unsigned short get_register_value_by_index(unsigned char index) {
   return *get_register_by_index(index);
 }
 
-
-
-
 void start_execution_by_clock(Device::Devices *devices) {
   while(true) {
     word instruction_offset = (regs.cs*16) + regs.pc;
-    regs.ir = *((unsigned char*)(virtual_memory_base_address+regs.cs+regs.pc));
+
+    regs.ir = *((unsigned char*)(virtual_memory_base_address+(regs.cs*16)+regs.pc));
+    std::cout << "regs.ir: " << (void*)regs.ir << '\n';
 
     for(auto disk : devices->disks) {
       if(!disk->Refresh()) {
@@ -221,7 +222,7 @@ void start_execution_by_clock(Device::Devices *devices) {
 }
 
 int main(int argc, char *argv[]) {
-  system("/bin/clear");
+  //system("/bin/clear");
   namespace po = boost::program_options;
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -265,7 +266,7 @@ int main(int argc, char *argv[]) {
     *(virtual_memory_base_address+0x7c00+byte_) = buffer[byte_];
   }
 
-  regs.pc = (unsigned short)0x7c00;
+  regs.pc = 0;
   regs.cs = 0x07c0;
   regs.ss = 0;
   regs.ds = 0x07c0;

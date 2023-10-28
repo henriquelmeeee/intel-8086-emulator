@@ -4,8 +4,11 @@
 main:
   ;mov ax, 0x7c0
   ;mov ds, ax
-  mov di, 5
+  nop
+  inc al
+  hlt
   mov ax, 5
+
   mov [di], ax
   hlt
   mov bx, 5

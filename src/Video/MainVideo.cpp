@@ -68,7 +68,7 @@ namespace Video {
 
     TTF_Init();
 
-    TTF_Font* font = TTF_OpenFont("../Fibts/VGA.ttf", VIDEO_HEIGHT);
+    TTF_Font* font = TTF_OpenFont("/home/henrique/intel-8086-emulator/src/Fonts/VGA.ttf", VIDEO_HEIGHT);
     if(font == nullptr) {
       SDL_Log("Erro ao carregar a fonte: %s", TTF_GetError());
       while(true);

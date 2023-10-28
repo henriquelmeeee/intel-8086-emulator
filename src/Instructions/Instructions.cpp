@@ -429,6 +429,47 @@ namespace InstructionHandler {
 
   }
 
+  void INC_DEC_CALL(DEFAULT_ARGS) {
+    ModRM modrm = decode_modrm(args.imm16_value);
+    short* register_rm = (short*)get_register_by_index(modrm.RM);
+
+    std::cout << "is_register: " << modrm.is_register << '\n';
+
+    switch(modrm.Reg_Opcode) {
+      case 0:
+        {
+          // INC
+          std::cout << "INC detectado\n";
+          short resultado = *register_rm + 1;
+          __set_flags(resultado);
+
+          // TODO setar outras flags de overlow
+          // talvez o set_flags estejaa pensando q 'resultado' é um tipo nao-assinado
+          // qdo na vdd isso depende do contexto. FIXME
+          *register_rm = resultado;
+            regs.pc+=2;
+          break;
+        }
+      case 1:
+        {
+          // DEC
+          break;
+        }
+      case 4:
+        {
+          // CALL
+          break;
+        }
+      default:
+        {
+          std::cout << "invalid opcode INC_DEC_CALL()\nTODO throw cpu fault\n";
+          while(true);
+        }
+    }
+
+
+  }
+
   namespace CALL {
     void _rel16(DEFAULT_ARGS) {
       signed short offset = args.imm16_value;
