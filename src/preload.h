@@ -14,6 +14,8 @@ typedef unsigned short word;
 #include <queue>
 #include <map>
 
+#include "VMState.h"
+
 enum ExecutionState {
     SUCCESS,
     ERROR,

@@ -22,6 +22,34 @@ Processor CPU;
 void dump_registers() {
   std::cout << "dump_registers() todo";
 }
+
+unsigned long amount_of_memory = 2*MB;
+void dump_vm_state_to_file() {
+  // TODO talvez fazer dump de memoria e registradores após qualquer crash de CPU?
+  std::cout << "[dump_memory_to_file()] starting the dump...";
+  FILE* file = fopen("./vm.dump", "wb");
+  if(file == NULL) {
+    perror("File open failed");
+    exit(1);
+  }
+
+  // VMState struct into file
+    
+  vm_state vm_state_buffer = vm_state();
+  vm_state_buffer.vm_memory_size = amount_of_memory;
+  vm_state_buffer.vm_mode = (char)1;
+
+  fwrite(&vm_state_buffer, sizeof(vm_state), 1, file);
+
+  // Memory dump
+
+  fwrite(virtual_memory_base_address, amount_of_memory, 1, file);
+
+  // Registers state
+  // TODO a fazer.
+  exit(0);
+}
+
 unsigned long cursor_location = 0;
 
 void CLI(InstructionArgs args) {
@@ -231,6 +259,7 @@ void start_execution_by_clock(Device::Devices *devices) {
   }
 }
 
+
 int main(int argc, char *argv[]) {
   //system("/bin/clear");
   namespace po = boost::program_options;
@@ -253,8 +282,8 @@ int main(int argc, char *argv[]) {
     std::cout << "[main] ERROR: 'master' disk needs to be informed";
     exit(1);
   }
-
-  virtual_memory_base_address = (byte*) mmap(NULL, 2*MB, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  
+  virtual_memory_base_address = (byte*) mmap(NULL, amount_of_memory, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   std::cout << "[main] base of allocated VM memory: " << virtual_memory_base_address << "\n";
   std::cout << "[main] Loading bootloader\tTODO: Load BIOS instead\n";
   
