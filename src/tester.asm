@@ -8,3 +8,5 @@ main:
   jmp main
 end:
   hlt
+
+msg db "teste", 0

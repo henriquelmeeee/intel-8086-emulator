@@ -93,6 +93,11 @@ void CLI(InstructionArgs args) {
   regs.pc += 1;
 }
 
+void STI(InstructionArgs args) {
+  IF = 1;
+  regs.pc += 1;
+}
+
 void jump_to(int offset) {
   regs.pc += offset;
 }
@@ -119,6 +124,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
   {0xAC, {1, InstructionHandler::_LODSB, "LODSB"}},
   {0xFA, {1, CLI, "CLI"}},
+  {0xFB, {1, STI, "STI"}},
   {0xCD, {2, InstructionHandler::_INT, "INT imm8"}},
 
   /* MOVs */
