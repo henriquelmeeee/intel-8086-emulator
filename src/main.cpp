@@ -26,7 +26,7 @@ void dump_registers() {
 unsigned long amount_of_memory = 2*MB;
 void dump_vm_state_to_file() {
   // TODO talvez fazer dump de memoria e registradores após qualquer crash de CPU?
-  std::cout << "[dump_memory_to_file()] starting the dump...";
+  std::cout << "[dump_vm_state_to_file()] starting the dump...";
   FILE* file = fopen("./vm.dump", "wb");
   if(file == NULL) {
     perror("File open failed");
@@ -48,6 +48,42 @@ void dump_vm_state_to_file() {
   // Registers state
   // TODO a fazer.
   exit(0);
+}
+
+void restore_vm_state_from_file() {
+  std::cout << "[restore_vm_state_from_file()] starting the restore...";
+  FILE* file = fopen("./vm.dump", "rb");
+  if(file == NULL) {
+    perror("File open failed");
+    exit(1);
+  }
+
+  vm_state* vm_state_buffer;
+
+  fseek(file, 0, SEEK_END);
+  long size = ftell(file);
+  fseek(file, 0, SEEK_SET);
+
+  char* file_data = (char*)malloc(size);
+  if(file_data)
+    fread(file_data, 1, size, file);
+
+  // TODO handle if(!file_data){}.
+
+  vm_state_buffer = (vm_state*)file_data;
+  char* memory_data = file_data + sizeof(vm_state);
+  unsigned long memory_size = vm_state_buffer->vm_memory_size;
+
+  virtual_memory_base_address = (unsigned char*)malloc(memory_size);
+  amount_of_memory = memory_size;
+
+  // Copy the memory. Maybe use the std copy instead?
+  for(unsigned long i = 0; i < memory_size; i++) {
+    virtual_memory_base_address[i] = memory_data[i];
+  }
+
+  // TODO handle the registers state when its ready.
+
 }
 
 unsigned long cursor_location = 0;
@@ -156,7 +192,7 @@ char user_buffer[32];
 void inline wait_for_user() {
   std::cout << "\nBreakpoint\n\nCycles: " << iterations << "\nInstruction: " << opcode_map[regs.ir].name << "\n\n";
   while(true) {
-    std::cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address" << "\n> ";
+    std::cout << "Commands:\n\tni\t-> next instruction\n\tq\t-> quit\n\tdr\t-> dump registers\n\trd\t-> read memory address\n\twr\t-> write memory address\n\tsve\t-> save the vm state to a file" << "\n> ";
   
     std::cin >> user_buffer;
     unsigned short address_to_read = atoi(&(user_buffer[2]));
@@ -180,8 +216,11 @@ void inline wait_for_user() {
       std::cin >> value;
       *((char*)virtual_memory_base_address+address_to_read) = value;
       std::cout << "Success!\n";
+    } else if (strncmp(user_buffer, "sve", 3) == 0) {
+      dump_vm_state_to_file();
+      exit(0);
     } else {
-      exit(1);
+      return;
     }
   }
 }
