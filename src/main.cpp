@@ -119,7 +119,13 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   
   /* IN and OUT */
   {0xE4, {2, NI, "IN al, imm8 (NI)"}},
+  {0xE5, {2, NI, "IN ax, imm8 (NI)"}},
+  {0xED, {1, NI, "IN ax, dx"}},
   {0xEC, {1, InstructionHandler::_IN_al_dx, "IN al, dx"}},
+  /*out*/
+  {0xE6, {2, NI, "OUT imm8, al"}},
+  {0xE7, {2, NI, "OUT imm8, ax"}},
+  {0xEE, {1, InstructionHandler::_OUT_dx_al, "OUT dx, al"}}, // oq está em al vai pra porta em dx
 
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
   {0xAC, {1, InstructionHandler::_LODSB, "LODSB"}},
