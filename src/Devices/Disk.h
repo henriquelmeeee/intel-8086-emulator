@@ -44,6 +44,7 @@ namespace Device {
           0x1F6,
           0x1F7
         };
+        // TODO FIXME preencher callbacks e ignorar Refresh() pois as coisas irão funcionar através de callback com OUT e IN em cada porto de dados
       }
 
       void handle_read_sector();
@@ -60,6 +61,7 @@ namespace Device {
         }
       }
       // Cada porto de dados pode ter um callback para 'in' e um callback para 'out'
+      // TODO FIXME colocar isso no Disk.cpp
       void callback_in_data_port() { // it will be called when 'IN xx, ATA_DATA_PORT'
         if(m_current_sectors_count) {
           m_last_byte += 2;
