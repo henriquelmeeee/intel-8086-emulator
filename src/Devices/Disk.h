@@ -34,6 +34,7 @@ namespace Device {
 
       Disk(char* location_in_memory) : m_location_in_memory(location_in_memory){
         std::cout << "[Disk()] disco criado com conteúdo em 0x" << location_in_memory << "\n";
+
         ports_in_use = { // hardcodado temporariamente
           0x1F0,
           0x1F1,
@@ -44,24 +45,16 @@ namespace Device {
           0x1F6,
           0x1F7
         };
+
+        devices_callbacks[0x1F0] = []{std::cout << "TODO 0x1F0 callback";};
+        // TODO FIXME colocar isso no Disk.cpp
         // TODO FIXME preencher callbacks e ignorar Refresh() pois as coisas irão funcionar através de callback com OUT e IN em cada porto de dados
       }
 
       void handle_read_sector();
 
-      bool Refresh() {
-        switch(ports[ATA_COMMAND_PORT]) {
-          case ATA_READ_CMD:
-            m_current_selected_drive = ports[ATA_DRIVE_SELECT];
-            m_current_sectors_count = ports[ATA_SECTORS_COUNT];
-            handle_read_sector();
-            break;
-          default:
-            break;
-        }
-      }
       // Cada porto de dados pode ter um callback para 'in' e um callback para 'out'
-      // TODO FIXME colocar isso no Disk.cpp
+      // TODO FIXME colocar isso no callbacks
       void callback_in_data_port() { // it will be called when 'IN xx, ATA_DATA_PORT'
         if(m_current_sectors_count) {
           m_last_byte += 2;

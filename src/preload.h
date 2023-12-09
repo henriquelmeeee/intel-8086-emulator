@@ -13,6 +13,9 @@ typedef unsigned short word;
 #include <mutex>
 #include <queue>
 #include <map>
+#include <functional>
+
+extern std::map<unsigned short, std::function<void()>> devices_callbacks;
 
 #include "VMState.h"
 

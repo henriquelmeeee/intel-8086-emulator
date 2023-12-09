@@ -125,7 +125,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   /*out*/
   {0xE6, {2, NI, "OUT imm8, al"}},
   {0xE7, {2, NI, "OUT imm8, ax"}},
-  {0xEE, {1, InstructionHandler::_OUT_dx_al, "OUT dx, al"}}, // oq está em al vai pra porta em dx
+  {0xEE, {1, NI, "OUT dx, al"}}, // oq está em al vai pra porta em dx
 
   {0xF4, {1, InstructionHandler::_HLT, "HLT"}},
   {0xAC, {1, InstructionHandler::_LODSB, "LODSB"}},
@@ -175,15 +175,17 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xFF, {2, InstructionHandler::_INC_DEC_CALL, "INC/DEC/CALL"}}
 };
 
+std::map<unsigned short, void*> devices_callbacks;
+
 byte *virtual_memory_base_address;
 int main_clock_freq = 10;
 
-ExecutionState decode_and_execute(Device::Devices* devices) {
+ExecutionState decode_and_execute(/*Device::Devices* devices*/) {
   struct InstructionArgs args = {
     (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc),    
     (unsigned char)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
     (unsigned short)*(virtual_memory_base_address+(regs.cs*16)+regs.pc+1),
-    devices,
+    /*devices,*/
   };
 
   if(opcode_map[regs.ir].handler != nullptr) {
@@ -269,18 +271,12 @@ unsigned short get_register_value_by_index(unsigned char index) {
   return *get_register_by_index(index);
 }
 
-void start_execution_by_clock(Device::Devices *devices) {
+void start_execution_by_clock(/*Device::Devices *devices*/) {
   while(true) {
     word instruction_offset = (regs.cs*16) + regs.pc;
 
     regs.ir = *((unsigned char*)(virtual_memory_base_address+(regs.cs*16)+regs.pc));
     std::cout << "regs.ir: " << (void*)regs.ir << '\n';
-
-    for(auto disk : devices->disks) {
-      if(!disk->Refresh()) {
-        // o disco irá definir seu código de erro . 
-      }
-    }
 
   // FIFO model
 
@@ -305,7 +301,7 @@ void start_execution_by_clock(Device::Devices *devices) {
       wait_for_user();
     ++iterations;
     if(!CPU.hlt)
-      decode_and_execute(devices);
+      decode_and_execute(/*devices*/);
     std::this_thread::sleep_for(std::chrono::milliseconds(1000 / main_clock_freq));
   }
 }
