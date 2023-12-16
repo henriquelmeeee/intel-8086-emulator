@@ -14,6 +14,8 @@ struct CallbackParameters {
     IN,
     OUT
   } cb_operation_type;
+  char cb_first_byte_operand;
+  char cb_second_byte_operand;
 };
 
 enum InterruptionType {

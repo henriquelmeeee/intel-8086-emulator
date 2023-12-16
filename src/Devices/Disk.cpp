@@ -36,16 +36,42 @@ namespace Device {
     };
   }
 
-  void Disk::regEightCallback() {
+  void Disk::regFourthCallback() {
     devices_callbacks[0x1F7] = [&](CallbackParameters params) {
       // OUT: comandos
       // IN: status do disco, como se ta ocupado, se ocorreram erros, etc
       if(params.cb_operation_type == IN)  {
 
       } else {
-        
+
       }
+    };
+  }
+
+  void __handle_drive_select_disk(char drive_select) {
+    switch(drive_select) {
+      case 0:
+        {
+          // seleciona o primario
+          break;
+        }
+      case 1:
+        {
+          // seleciona o secundario
+          break;
+        }
     }
+  }
+
+  void Disk::regFifthCallback() {
+    devices_callbacks[0x1F6] = [&](CallbackParameters params) {
+      if(params.cb_operation_type == IN) {
+        // TODO retornar informacoes sobre o modo de operacao e a selecao do disco
+      } else {
+        char drive_select = params.cb_operation_type >> 7;
+        __handle_drive_select_disk(drive_select);
+      }
+    };
   }
 
 /*

@@ -22,10 +22,10 @@ struct PortInfo {
   unsigned short port;
   void* owner;
 };
+
 std::vector<PortInfo> ports_in_use = {};
 int last_sector = 0;
 int last_byte = 0;
-
 char* m_location_in_memory = 0;
 unsigned short m_current_selected_drive = 0; // out ATA_DRIVE_SELECT, 0xE0
 unsigned short m_current_sectors_count = 0;
@@ -39,9 +39,9 @@ namespace Device {
       void regThirdCallback();
       void regFourthCallback();
       void regFifthCallback();
-      void regSixthCallback();
-      void regSeventhCallback();
-      void regEightCallback();
+      //void regSixthCallback();
+      //void regSeventhCallback();
+      //void regEightCallback();
     public:
 
       Disk() {
