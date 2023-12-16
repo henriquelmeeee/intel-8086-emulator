@@ -175,7 +175,7 @@ std::map<unsigned char, struct InstructionInfo> opcode_map = {
   {0xFF, {2, InstructionHandler::_INC_DEC_CALL, "INC/DEC/CALL"}}
 };
 
-std::map<unsigned short, void*> devices_callbacks;
+std::map<unsigned short, std::function<void(struct CallbackParameters)>> devices_callbacks;
 
 byte *virtual_memory_base_address;
 int main_clock_freq = 10;
@@ -363,12 +363,12 @@ int main(int argc, char *argv[]) {
   refreshThread.detach();
   std::cout << "[main] Initializing devices\n";
 
-  Device::Keyboard *kb = new Device::Keyboard();
-  Device::Disk *master = new Device::Disk(buffer); // TODO get addr of disk 0
+  //Device::Keyboard *kb = new Device::Keyboard();
+  Device::Disk *master = new Device::Disk((char*)buffer); // TODO get addr of disk 0
 
-  Device::Devices *devices = new Device::Devices(master, kb);
+  //Device::Devices *devices = new Device::Devices(master, kb);
   
-  auto wrapper = [&]() {start_execution_by_clock(devices);};
+  auto wrapper = [&]() {start_execution_by_clock(/*devices*/);};
   std::thread execution_by_clock(wrapper);
   execution_by_clock.detach();
 

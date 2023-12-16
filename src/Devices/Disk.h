@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Devices.h"
 
 #include "stdio.h"
@@ -16,7 +18,11 @@
 #define ATA_DRIVE_SELECT 0x1F6
 #define ATA_READ_CMD 0x20
 
-std::vector<unsigned short> ports_in_use = {};
+struct PortInfo {
+  unsigned short port;
+  void* owner;
+};
+std::vector<PortInfo> ports_in_use = {};
 int last_sector = 0;
 int last_byte = 0;
 
@@ -28,6 +34,14 @@ unsigned short m_last_byte = 0;
 namespace Device {
   class Disk {
     private:
+      void regFirstCallback();
+      void regSecondCallback();
+      void regThirdCallback();
+      void regFourthCallback();
+      void regFifthCallback();
+      void regSixthCallback();
+      void regSeventhCallback();
+      void regEightCallback();
     public:
 
       Disk() {
@@ -38,33 +52,42 @@ namespace Device {
         m_location_in_memory = location_in_memory;
         std::cout << "[Disk()] disco criado com conteúdo em 0x" << location_in_memory << "\n";
 
-        ports_in_use = { // hardcodado temporariamente
-          0x1F0,
-          0x1F1,
-          0x1F2,
-          0x1F3,
-          0x1F4,
-          0x1F5,
-          0x1F6,
-          0x1F7
-        };
+        ports_in_use.push_back({0x1F0, (void*)this});
+        ports_in_use.push_back({0x1F1, (void*)this});
+        ports_in_use.push_back({0x1F2, (void*)this});
+        ports_in_use.push_back({0x1F3, (void*)this});
+        ports_in_use.push_back({0x1F4, (void*)this});
+        ports_in_use.push_back({0x1F5, (void*)this});
+        ports_in_use.push_back({0x1F6, (void*)this});
+        ports_in_use.push_back({0x1F7, (void*)this});
 
-        devices_callbacks[0x1F0] = []{
+        regFirstCallback();
+        regSecondCallback();
+        regThirdCallback();
+        regFourthCallback();
+        regFifthCallback();
+        regSixthCallback();
+        regSeventhCallback();
+        regEighthCallback();
+
+
+        devices_callbacks[0x1F0] = [&](CallbackParameters params){
           // Data port
-          if(m_current_sectors_count) {
-            m_last_byte += 2;
-            if(m_last_byte == 512) {
-              m_last_byte = 0;
-              --m_current_sectors_count;
+
+          if(params.cb_operation_type == IN) {
+            if(m_current_sectors_count) {
+              m_last_byte += 2;
+              if(m_last_byte == 512) {
+                m_last_byte = 0;
+                --m_current_sectors_count;
+              }
             }
           }
+
+
+
         };
-
-
-        // TODO FIXME colocar isso no Disk.cpp
       }
-
-      void handle_read_sector();
 
   };
 } // namespace Device

@@ -9,6 +9,13 @@
 
 extern std::map<unsigned short, unsigned short> ports;
 
+struct CallbackParameters {
+  enum {
+    IN,
+    OUT
+  } cb_operation_type;
+};
+
 enum InterruptionType {
   KEYBOARD,
   MOUSE,

@@ -210,5 +210,6 @@ unsigned short get_register_value_by_index(unsigned char index);
 
 #include "Instructions/Instructions.h"
 #include "Devices/Devices.h"
+#include "Devices/Disk.h"
 
 #include "ModRM.h"

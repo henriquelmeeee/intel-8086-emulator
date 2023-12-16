@@ -12,7 +12,7 @@ struct InstructionArgs {
   unsigned char opcode;
   unsigned char imm8_value;
   unsigned short imm16_value;
-  Device::Devices* devices;
+  //Device::Devices* devices;
 };
 
 struct InstructionInfo {
