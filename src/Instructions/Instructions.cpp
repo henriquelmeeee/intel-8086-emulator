@@ -201,8 +201,8 @@ namespace InstructionHandler {
   }
 
   void _IN_al_dx(DEFAULT_ARGS) {
-    // TODO FIXME implementar
-    regs.ax.al = 1;
+    unsigned short port = regs.dx.dx;
+    regs.ax.al = (void*)(devices_callbacks[port](CallbackParameters(IN, args.imm8_value, args.imm16_value)));
   }
 
   void INC16(DEFAULT_ARGS) { // 0x40-0x47
